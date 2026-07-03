@@ -25,16 +25,14 @@ public class TareasController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Tarea>>> GetAll(int notaId)
     {
-        var nota = await _notaRepo.GetByIdAsync(notaId);
-        if (nota == null || nota.UsuarioId != UserId) return NotFound();
+        if (!await UserOwnsNota(notaId)) return NotFound();
         return Ok(await _tareaRepo.GetAllByNotaAsync(notaId));
     }
 
     [HttpPost]
     public async Task<ActionResult<Tarea>> Create(int notaId, [FromBody] Tarea tarea)
     {
-        var nota = await _notaRepo.GetByIdAsync(notaId);
-        if (nota == null || nota.UsuarioId != UserId) return NotFound();
+        if (!await UserOwnsNota(notaId)) return NotFound();
         tarea.NotaId = notaId;
         var created = await _tareaRepo.CreateAsync(tarea);
         return CreatedAtAction(nameof(GetAll), new { notaId }, created);
@@ -46,8 +44,7 @@ public class TareasController : ControllerBase
         if (id != tarea.Id) return BadRequest();
         var existing = await _tareaRepo.GetByIdAsync(id);
         if (existing == null || existing.NotaId != notaId) return NotFound();
-        var nota = await _notaRepo.GetByIdAsync(notaId);
-        if (nota == null || nota.UsuarioId != UserId) return NotFound();
+        if (!await UserOwnsNota(notaId)) return NotFound();
         tarea.NotaId = notaId;
         await _tareaRepo.UpdateAsync(tarea);
         return NoContent();
@@ -58,8 +55,7 @@ public class TareasController : ControllerBase
     {
         var tarea = await _tareaRepo.GetByIdAsync(id);
         if (tarea == null || tarea.NotaId != notaId) return NotFound();
-        var nota = await _notaRepo.GetByIdAsync(notaId);
-        if (nota == null || nota.UsuarioId != UserId) return NotFound();
+        if (!await UserOwnsNota(notaId)) return NotFound();
         await _tareaRepo.DeleteAsync(tarea);
         return NoContent();
     }
@@ -67,12 +63,16 @@ public class TareasController : ControllerBase
     [HttpPut("{id}/toggle")]
     public async Task<IActionResult> Toggle(int notaId, int id)
     {
+        if (!await UserOwnsNota(notaId)) return NotFound();
         var tarea = await _tareaRepo.GetByIdAsync(id);
         if (tarea == null || tarea.NotaId != notaId) return NotFound();
-        var nota = await _notaRepo.GetByIdAsync(notaId);
-        if (nota == null || nota.UsuarioId != UserId) return NotFound();
-        tarea.Completada = !tarea.Completada;
-        await _tareaRepo.UpdateAsync(tarea);
+        await _tareaRepo.ToggleAsync(id);
         return NoContent();
+    }
+
+    private async Task<bool> UserOwnsNota(int notaId)
+    {
+        var nota = await _notaRepo.GetByIdAsync(notaId);
+        return nota != null && nota.UsuarioId == UserId;
     }
 }

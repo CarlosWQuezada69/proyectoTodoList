@@ -8,5 +8,7 @@ public interface INotaRepository
     Task<Nota?> GetByIdAsync(int id);
     Task<Nota> CreateAsync(Nota nota);
     Task UpdateAsync(Nota nota);
+    Task UpdateColorAsync(int id, string? color);
+    Task TogglePinAsync(int id);
     Task DeleteAsync(Nota nota);
 }

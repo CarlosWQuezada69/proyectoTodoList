@@ -1,5 +1,6 @@
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using TaskFlow.Api.Data;
 using TaskFlow.Api.DTOs;
@@ -10,6 +11,7 @@ namespace TaskFlow.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[EnableRateLimiting("Auth")]
 public class AuthController : ControllerBase
 {
     private readonly ApplicationDbContext _context;

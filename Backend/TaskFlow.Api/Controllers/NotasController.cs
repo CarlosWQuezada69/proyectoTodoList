@@ -12,12 +12,10 @@ namespace TaskFlow.Api.Controllers;
 public class NotasController : ControllerBase
 {
     private readonly INotaRepository _notaRepo;
-    private readonly ITareaRepository _tareaRepo;
 
-    public NotasController(INotaRepository notaRepo, ITareaRepository tareaRepo)
+    public NotasController(INotaRepository notaRepo)
     {
         _notaRepo = notaRepo;
-        _tareaRepo = tareaRepo;
     }
 
     private int UserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
@@ -69,21 +67,23 @@ public class NotasController : ControllerBase
     [HttpPut("{id}/toggle-pin")]
     public async Task<IActionResult> TogglePin(int id)
     {
-        var nota = await _notaRepo.GetByIdAsync(id);
-        if (nota == null || nota.UsuarioId != UserId) return NotFound();
-        nota.IsPinned = !nota.IsPinned;
-        await _notaRepo.UpdateAsync(nota);
+        if (!await UserOwnsNota(id)) return NotFound();
+        await _notaRepo.TogglePinAsync(id);
         return NoContent();
     }
 
     [HttpPut("{id}/color")]
     public async Task<IActionResult> UpdateColor(int id, [FromBody] ColorRequest request)
     {
-        var nota = await _notaRepo.GetByIdAsync(id);
-        if (nota == null || nota.UsuarioId != UserId) return NotFound();
-        nota.Color = request.Color;
-        await _notaRepo.UpdateAsync(nota);
+        if (!await UserOwnsNota(id)) return NotFound();
+        await _notaRepo.UpdateColorAsync(id, request.Color);
         return NoContent();
+    }
+
+    private async Task<bool> UserOwnsNota(int notaId)
+    {
+        var nota = await _notaRepo.GetByIdAsync(notaId);
+        return nota != null && nota.UsuarioId == UserId;
     }
 }
 

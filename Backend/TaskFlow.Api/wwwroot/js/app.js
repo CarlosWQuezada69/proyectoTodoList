@@ -5,8 +5,8 @@ let currentNota = null;
 let selectedColor = '';
 let pendingTasks = [];
 let darkMode = localStorage.getItem('darkMode') === 'true';
+let isLoading = false;
 
-// DOM refs
 const $ = id => document.getElementById(id);
 const authSection = $('auth-section');
 const mainSection = $('main-section');
@@ -19,13 +19,18 @@ const logoutBtn = $('logout-btn');
 const darkToggle = $('dark-toggle');
 const notesGrid = $('notes-grid');
 const emptyMsg = $('empty-msg');
+const emptyIcon = $('empty-icon');
+const emptyText = $('empty-text');
+const emptySub = $('empty-sub');
 const noteTitleInput = $('note-title-input');
 const taskInput = $('task-input');
 const addTaskBtn = $('add-task-btn');
 const taskPreview = $('task-preview');
 const saveNoteBtn = $('save-note-btn');
+const noteError = $('note-error');
 const searchInput = $('search-input');
 const modal = $('note-modal');
+const modalContent = modal?.querySelector('.modal-content');
 const modalTitle = $('modal-title');
 const modalTasks = $('modal-tasks');
 const modalTaskInput = $('modal-task-input');
@@ -34,10 +39,34 @@ const modalPin = $('modal-pin');
 const modalCheckAll = $('modal-check-all');
 const modalDeleteNote = $('modal-delete-note');
 const addNoteCard = $('add-note-card');
+const toast = $('toast');
 
-// Init dark mode
 if (darkMode) document.documentElement.setAttribute('data-theme', 'dark');
 updateDarkIcon();
+
+// Toast ---------------------------------------------------------------
+let toastTimer;
+
+function showToast(msg, type = '') {
+  clearTimeout(toastTimer);
+  toast.textContent = msg;
+  toast.className = 'toast' + (type ? ' ' + type : '');
+  toast.classList.remove('hidden');
+  toastTimer = setTimeout(() => toast.classList.add('hidden'), 3000);
+}
+
+// Loading state --------------------------------------------------------
+function setLoading(btn, loading) {
+  if (!btn) return;
+  if (loading) {
+    btn.dataset.orig = btn.innerHTML;
+    btn.innerHTML = '<span class="spinner"></span>';
+    btn.classList.add('btn-loading');
+  } else {
+    btn.innerHTML = btn.dataset.orig || btn.innerHTML;
+    btn.classList.remove('btn-loading');
+  }
+}
 
 // Auth
 function showAuth() { authSection.classList.remove('hidden'); mainSection.classList.add('hidden'); }
@@ -58,6 +87,7 @@ loginForm.addEventListener('submit', async (e) => {
   const username = $('login-username').value;
   const password = $('login-password').value;
   loginError.textContent = '';
+  setLoading(loginForm.querySelector('button[type="submit"]'), true);
   try {
     const res = await fetch(`${API}/api/auth/login`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -73,7 +103,9 @@ loginForm.addEventListener('submit', async (e) => {
     userDisplay.textContent = data.username;
     showMain();
     loadNotas();
+    showToast('Sesión iniciada', 'success');
   } catch (err) { loginError.textContent = err.message; }
+  finally { setLoading(loginForm.querySelector('button[type="submit"]'), false); }
 });
 
 registerForm.addEventListener('submit', async (e) => {
@@ -81,6 +113,7 @@ registerForm.addEventListener('submit', async (e) => {
   const username = $('reg-username').value;
   const password = $('reg-password').value;
   registerError.textContent = '';
+  setLoading(registerForm.querySelector('button[type="submit"]'), true);
   try {
     const res = await fetch(`${API}/api/auth/register`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -94,12 +127,15 @@ registerForm.addEventListener('submit', async (e) => {
     $('login-username').value = username;
     loginError.textContent = 'Cuenta creada. Inicia sesión.';
     loginError.style.color = '#34a853';
+    showToast('Cuenta creada', 'success');
   } catch (err) { registerError.textContent = err.message; }
+  finally { setLoading(registerForm.querySelector('button[type="submit"]'), false); }
 });
 
 logoutBtn.addEventListener('click', () => {
   token = null; localStorage.removeItem('token'); showAuth();
   closeModal();
+  showToast('Sesión cerrada');
 });
 
 darkToggle.addEventListener('click', () => {
@@ -118,6 +154,7 @@ async function api(path, options = {}) {
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
   const res = await fetch(`${API}${path}`, { ...options, headers });
+  if (res.status === 429) throw new Error('Demasiadas solicitudes. Espera un momento.');
   if (res.status === 401) {
     token = null; localStorage.removeItem('token');
     showAuth(); closeModal();
@@ -137,11 +174,16 @@ async function loadNotas() {
   try {
     notas = await api('/api/notas');
     renderNotas(filterNotas());
-  } catch (err) { if (err.message !== 'Sesión expirada') console.error(err); }
+  } catch (err) {
+    if (err.message !== 'Sesión expirada') {
+      showToast('Error al cargar notas', 'error');
+    }
+  }
 }
 
 function filterNotas() {
   const q = searchInput.value.toLowerCase();
+  if (!q) return notas;
   return notas.filter(n => {
     const titleMatch = n.titulo && n.titulo.toLowerCase().includes(q);
     const tasksMatch = n.tareas && n.tareas.some(t => t.texto.toLowerCase().includes(q));
@@ -151,7 +193,20 @@ function filterNotas() {
 
 function renderNotas(filtered) {
   notesGrid.innerHTML = '';
-  if (filtered.length === 0) { emptyMsg.classList.remove('hidden'); return; }
+  const isSearching = searchInput.value.trim().length > 0;
+  if (filtered.length === 0) {
+    emptyMsg.classList.remove('hidden');
+    if (isSearching) {
+      emptyIcon.textContent = '🔍';
+      emptyText.textContent = 'Sin resultados';
+      emptySub.textContent = 'Prueba con otro término de búsqueda';
+    } else {
+      emptyIcon.textContent = '📝';
+      emptyText.textContent = 'No hay notas. ¡Crea una!';
+      emptySub.textContent = 'Escribe un título y añade tareas arriba';
+    }
+    return;
+  }
   emptyMsg.classList.add('hidden');
   filtered.forEach(n => {
     const card = document.createElement('div');
@@ -181,7 +236,7 @@ function escHtml(s) {
   return d.innerHTML;
 }
 
-// Pending tasks for new note
+// Pending tasks
 addTaskBtn.addEventListener('click', addPendingTask);
 taskInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') addPendingTask(); });
 
@@ -225,6 +280,8 @@ noteTitleInput.addEventListener('keypress', (e) => { if (e.key === 'Enter' && !e
 async function createNote() {
   const titulo = noteTitleInput.value.trim();
   if (!titulo && pendingTasks.length === 0) return;
+  noteError.textContent = '';
+  setLoading(saveNoteBtn, true);
   try {
     const nota = await api('/api/notas', {
       method: 'POST',
@@ -242,8 +299,16 @@ async function createNote() {
     renderPendingTasks();
     addNoteCard.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
     addNoteCard.querySelector('.color-btn[data-color=""]').classList.add('active');
+    noteError.textContent = '✓ Nota creada';
+    noteError.style.color = '#34a853';
+    setTimeout(() => { noteError.textContent = ''; noteError.style.color = ''; }, 2000);
+    showToast('Nota creada', 'success');
     loadNotas();
-  } catch (err) { console.error(err); }
+  } catch (err) {
+    noteError.textContent = '✗ ' + err.message;
+    noteError.style.color = '#d93025';
+    showToast(err.message, 'error');
+  } finally { setLoading(saveNoteBtn, false); }
 }
 
 // Modal
@@ -281,7 +346,7 @@ async function saveModalTitle() {
       method: 'PUT', body: JSON.stringify(currentNota)
     });
     loadNotas();
-  } catch (err) { console.error(err); }
+  } catch (err) { showToast('Error al guardar título', 'error'); }
 }
 
 // Modal color
@@ -290,13 +355,15 @@ modal.querySelectorAll('.color-btn').forEach(btn => {
     modal.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     if (!currentNota) return;
+    const color = btn.dataset.color || null;
     try {
-      currentNota.color = btn.dataset.color || null;
+      currentNota.color = color;
+      if (modalContent) modalContent.style.background = color || 'var(--surface)';
       await api(`/api/notas/${currentNota.id}/color`, {
-        method: 'PUT', body: JSON.stringify({ color: currentNota.color })
+        method: 'PUT', body: JSON.stringify({ color })
       });
       loadNotas();
-    } catch (err) { console.error(err); }
+    } catch (err) { showToast('Error al cambiar color', 'error'); }
   });
 });
 
@@ -304,6 +371,7 @@ function updateModalColor() {
   modal.querySelectorAll('.color-btn').forEach(b => {
     b.classList.toggle('active', b.dataset.color === (currentNota?.color || ''));
   });
+  if (modalContent) modalContent.style.background = currentNota?.color || 'var(--surface)';
 }
 
 // Modal pin
@@ -314,7 +382,7 @@ modalPin.addEventListener('click', async () => {
     currentNota.isPinned = !currentNota.isPinned;
     updateModalPin();
     loadNotas();
-  } catch (err) { console.error(err); }
+  } catch (err) { showToast('Error al fijar nota', 'error'); }
 });
 
 function updateModalPin() {
@@ -333,7 +401,7 @@ function renderModalTasks() {
   if (!currentNota) return;
   const tasks = currentNota.tareas || [];
   modalTasks.innerHTML = tasks.length === 0
-    ? '<div style="color:var(--text-secondary);font-size:13px;padding:12px;text-align:center">Sin tareas</div>'
+    ? '<div style="color:var(--text-secondary);font-size:13px;padding:12px;text-align:center">Sin tareas. Escribe una abajo.</div>'
     : tasks.map(t => `
       <div class="m-task${t.completada ? ' done' : ''}" data-id="${t.id}">
         <span class="m-check"></span>
@@ -351,6 +419,10 @@ function renderModalTasks() {
       deleteTask(parseInt(el.dataset.id));
     });
   });
+  // Inline edit
+  modalTasks.querySelectorAll('.m-text').forEach((el, i) => {
+    el.addEventListener('dblclick', () => startInlineEdit(el, tasks[i]));
+  });
 }
 
 async function toggleTask(task) {
@@ -359,7 +431,7 @@ async function toggleTask(task) {
     task.completada = !task.completada;
     renderModalTasks();
     loadNotas();
-  } catch (err) { console.error(err); }
+  } catch (err) { showToast('Error al actualizar tarea', 'error'); }
 }
 
 async function deleteTask(id) {
@@ -368,7 +440,39 @@ async function deleteTask(id) {
     currentNota.tareas = currentNota.tareas.filter(t => t.id !== id);
     renderModalTasks();
     loadNotas();
-  } catch (err) { console.error(err); }
+  } catch (err) { showToast('Error al eliminar tarea', 'error'); }
+}
+
+// Inline edit task
+function startInlineEdit(el, task) {
+  const orig = task.texto;
+  el.contentEditable = 'true';
+  el.focus();
+  const sel = window.getSelection();
+  sel.selectAllChildren(el);
+  sel.collapseToEnd();
+
+  const finish = async () => {
+    el.contentEditable = 'false';
+    const newText = el.textContent.trim();
+    if (newText && newText !== orig) {
+      task.texto = newText;
+      try {
+        await api(`/api/notas/${currentNota.id}/tareas/${task.id}`, {
+          method: 'PUT', body: JSON.stringify(task)
+        });
+        loadNotas();
+      } catch (err) { showToast('Error al editar tarea', 'error'); }
+    }
+    el.textContent = task.texto;
+    renderModalTasks();
+  };
+
+  el.addEventListener('blur', () => finish(), { once: true });
+  el.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') { e.preventDefault(); finish(); }
+    if (e.key === 'Escape') { el.textContent = orig; el.contentEditable = 'false'; renderModalTasks(); }
+  }, { once: false });
 }
 
 // Add task from modal
@@ -384,23 +488,27 @@ modalTaskInput.addEventListener('keypress', async (e) => {
     currentNota.tareas.push(tarea);
     renderModalTasks();
     loadNotas();
-  } catch (err) { console.error(err); }
+    showToast('Tarea añadida', 'success');
+  } catch (err) { showToast('Error al añadir tarea', 'error'); }
 });
 
 // Check all
 modalCheckAll.addEventListener('click', async () => {
   if (!currentNota) return;
-  const allDone = currentNota.tareas.every(t => t.completada);
+  const allDone = currentNota.tareas.length > 0 && currentNota.tareas.every(t => t.completada);
+  let count = 0;
   try {
     for (const t of currentNota.tareas) {
-      if (t.completada !== allDone) {
+      if (t.completada !== !allDone) {
         await api(`/api/notas/${currentNota.id}/tareas/${t.id}/toggle`, { method: 'PUT' });
         t.completada = !t.completada;
+        count++;
       }
     }
     renderModalTasks();
     loadNotas();
-  } catch (err) { console.error(err); }
+    showToast(allDone ? 'Todas desmarcadas' : 'Todas marcadas', 'success');
+  } catch (err) { showToast('Error', 'error'); }
 });
 
 // Delete note
@@ -410,7 +518,8 @@ modalDeleteNote.addEventListener('click', async () => {
     await api(`/api/notas/${currentNota.id}`, { method: 'DELETE' });
     closeModal();
     loadNotas();
-  } catch (err) { console.error(err); }
+    showToast('Nota eliminada', 'success');
+  } catch (err) { showToast('Error al eliminar nota', 'error'); }
 });
 
 // Search

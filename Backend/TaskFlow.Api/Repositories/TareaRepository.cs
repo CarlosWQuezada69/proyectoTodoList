@@ -17,6 +17,7 @@ public class TareaRepository : ITareaRepository
     {
         return await _context.Tareas
             .Where(t => t.NotaId == notaId)
+            .AsNoTracking()
             .ToListAsync();
     }
 
@@ -36,6 +37,14 @@ public class TareaRepository : ITareaRepository
     {
         _context.Tareas.Update(tarea);
         await _context.SaveChangesAsync();
+    }
+
+    public async Task ToggleAsync(int id)
+    {
+        await _context.Tareas
+            .Where(t => t.Id == id)
+            .ExecuteUpdateAsync(setters =>
+                setters.SetProperty(t => t.Completada, t => !t.Completada));
     }
 
     public async Task DeleteAsync(Tarea tarea)

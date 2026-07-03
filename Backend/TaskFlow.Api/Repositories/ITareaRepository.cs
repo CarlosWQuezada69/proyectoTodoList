@@ -8,5 +8,6 @@ public interface ITareaRepository
     Task<Tarea?> GetByIdAsync(int id);
     Task<Tarea> CreateAsync(Tarea tarea);
     Task UpdateAsync(Tarea tarea);
+    Task ToggleAsync(int id);
     Task DeleteAsync(Tarea tarea);
 }

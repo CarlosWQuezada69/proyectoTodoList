@@ -1,8 +1,10 @@
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using System.Threading.RateLimiting;
 using TaskFlow.Api.Data;
 using TaskFlow.Api.Repositories;
 using TaskFlow.Api.Services;
@@ -37,6 +39,28 @@ builder.Services.AddCors(options =>
     });
 });
 
+// Rate limiting --------------------------------------------------------------
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+    options.AddFixedWindowLimiter("Auth", auth =>
+    {
+        auth.PermitLimit = 10;
+        auth.Window = TimeSpan.FromMinutes(1);
+        auth.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        auth.QueueLimit = 0;
+    });
+
+    options.AddFixedWindowLimiter("Api", api =>
+    {
+        api.PermitLimit = 120;
+        api.Window = TimeSpan.FromMinutes(1);
+        api.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        api.QueueLimit = 0;
+    });
+});
+
 // Static files ----------------------------------------------------------------
 builder.Services.AddDirectoryBrowser();
 
@@ -62,11 +86,23 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         ValidIssuer              = issuer,
         ValidAudience            = audience,
-        IssuerSigningKey         = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
+        IssuerSigningKey         = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
+        ClockSkew                = TimeSpan.FromMinutes(1)
     };
 });
 
 var app = builder.Build();
+
+// Security headers -----------------------------------------------------------
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
+    context.Response.Headers.Append("X-Frame-Options", "DENY");
+    context.Response.Headers.Append("X-XSS-Protection", "0");
+    context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
+    context.Response.Headers.Append("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+    await next();
+});
 
 // Database initialization -----------------------------------------------------
 using (var scope = app.Services.CreateScope())
@@ -85,11 +121,10 @@ app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UseHttpsRedirection();
 app.UseCors();
+app.UseRateLimiter();
 app.UseAuthentication();
 app.UseAuthorization();
-app.MapControllers();
-
-// Fallback to index.html for SPA routing
+app.MapControllers().RequireRateLimiting("Api");
 app.MapFallbackToFile("index.html");
 
 app.Run();

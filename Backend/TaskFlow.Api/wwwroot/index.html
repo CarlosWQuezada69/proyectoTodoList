@@ -93,11 +93,16 @@
             </div>
             <button id="save-note-btn" class="btn-primary btn-sm">Añadir nota</button>
           </div>
+          <p id="note-error" class="error-msg" style="margin-top:8px"></p>
         </div>
 
         <!-- Notes grid -->
         <div id="notes-grid" class="notes-grid"></div>
-        <p id="empty-msg" class="empty-msg">No hay notas. ¡Crea una!</p>
+        <div id="empty-msg" class="empty-state">
+          <div class="empty-icon" id="empty-icon">📝</div>
+          <p id="empty-text">No hay notas. ¡Crea una!</p>
+          <p id="empty-sub" class="empty-sub">Escribe un título y añade tareas arriba</p>
+        </div>
       </main>
     </div>
   </div>
@@ -135,6 +140,7 @@
     </div>
   </div>
 
+  <div id="toast" class="toast hidden"></div>
   <script src="/js/app.js"></script>
 </body>
 </html>

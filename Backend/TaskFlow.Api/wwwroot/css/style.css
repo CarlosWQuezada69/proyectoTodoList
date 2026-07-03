@@ -223,7 +223,10 @@ main { max-width: 1200px; margin: 0 auto; padding: 24px; }
 .note-card .card-tasks .ct-item.done .ct-check { background: var(--primary); border-color: var(--primary); color: #fff; }
 .note-card .card-tasks .ct-item.done { text-decoration: line-through; opacity: 0.6; }
 
-.empty-msg { text-align: center; color: var(--text-secondary); font-size: 14px; padding: 60px 20px; }
+.empty-state { text-align: center; padding: 60px 20px; }
+.empty-state .empty-icon { font-size: 48px; margin-bottom: 12px; }
+.empty-state p { color: var(--text-secondary); font-size: 14px; }
+.empty-state .empty-sub { font-size: 13px; margin-top: 4px; opacity: 0.7; }
 
 /* Modal */
 .modal {
@@ -285,6 +288,34 @@ main { max-width: 1200px; margin: 0 auto; padding: 24px; }
 .modal-add-task input:focus { border-color: var(--primary); }
 
 .modal-footer { display: flex; gap: 8px; padding-top: 12px; border-top: 1px solid var(--border); }
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: var(--text); color: var(--bg); padding: 12px 24px;
+  border-radius: var(--radius-sm); font-size: 14px; font-weight: 500;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.2); z-index: 200;
+  animation: slideUp 0.3s; white-space: nowrap;
+}
+.toast.success { background: #34a853; color: #fff; }
+.toast.error { background: #d93025; color: #fff; }
+
+/* Loading spinner */
+.spinner {
+  display: inline-block; width: 16px; height: 16px;
+  border: 2px solid var(--border); border-top-color: var(--primary);
+  border-radius: 50%; animation: spin 0.6s linear infinite;
+  vertical-align: middle; margin-right: 6px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.btn-loading { pointer-events: none; opacity: 0.8; }
+
+/* Inline edit task text */
+.m-task .m-text[contenteditable="true"] {
+  outline: none; border-bottom: 1.5px solid var(--primary);
+  padding: 1px 4px; min-width: 20px;
+}
 
 /* Responsive */
 @media (max-width: 768px) {
