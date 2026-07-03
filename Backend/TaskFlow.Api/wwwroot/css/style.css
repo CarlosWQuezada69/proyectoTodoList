@@ -79,7 +79,7 @@ textarea {
 }
 textarea:focus { border-color: var(--primary); }
 
-.field input, .add-task-row input, #search-input, #task-input {
+.field input, .add-task-row input, #task-input {
   padding: 12px 14px; border: 1.5px solid var(--border); border-radius: var(--radius-sm);
   font-size: 14px; outline: none; background: var(--surface); color: var(--text);
   transition: border-color var(--transition);
