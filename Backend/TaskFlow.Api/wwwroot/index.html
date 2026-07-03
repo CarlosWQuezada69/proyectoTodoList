@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TaskFlow</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div id="app">
+    <!-- Auth -->
+    <div id="auth-section">
+      <div class="auth-card">
+        <div class="auth-logo">📝</div>
+        <h1>TaskFlow</h1>
+        <p class="subtitle">Tus notas con checklist</p>
+        <div class="tabs">
+          <button class="tab active" data-tab="login">Entrar</button>
+          <button class="tab" data-tab="register">Crear cuenta</button>
+        </div>
+        <form id="login-form" class="auth-form">
+          <div class="field">
+            <label for="login-username">Usuario</label>
+            <input type="text" id="login-username" required autocomplete="username">
+          </div>
+          <div class="field">
+            <label for="login-password">Contraseña</label>
+            <input type="password" id="login-password" required autocomplete="current-password">
+          </div>
+          <button type="submit" class="btn-primary">Entrar</button>
+          <p id="login-error" class="error-msg"></p>
+        </form>
+        <form id="register-form" class="auth-form hidden">
+          <div class="field">
+            <label for="reg-username">Usuario</label>
+            <input type="text" id="reg-username" required>
+          </div>
+          <div class="field">
+            <label for="reg-password">Contraseña</label>
+            <input type="password" id="reg-password" required>
+          </div>
+          <button type="submit" class="btn-primary">Crear cuenta</button>
+          <p id="register-error" class="error-msg"></p>
+        </form>
+      </div>
+    </div>
+
+    <!-- Main App -->
+    <div id="main-section" class="hidden">
+      <header>
+        <div class="header-left">
+          <span class="logo">📝</span>
+          <h1>TaskFlow</h1>
+        </div>
+        <div class="header-search">
+          <i class="fas fa-search"></i>
+          <input type="text" id="search-input" placeholder="Buscar notas...">
+        </div>
+        <div class="header-right">
+          <button id="dark-toggle" class="icon-btn" title="Modo oscuro">
+            <i class="fas fa-moon"></i>
+          </button>
+          <span id="user-display" class="user-name"></span>
+          <button id="logout-btn" class="icon-btn" title="Cerrar sesión">
+            <i class="fas fa-sign-out-alt"></i>
+          </button>
+        </div>
+      </header>
+
+      <main>
+        <!-- Add note -->
+        <div class="add-note-card" id="add-note-card">
+          <input type="text" id="note-title-input" placeholder="Título..." maxlength="200">
+          <div class="add-task-row">
+            <input type="text" id="task-input" placeholder="Nueva tarea..." maxlength="500">
+            <button id="add-task-btn" class="btn-icon"><i class="fas fa-plus"></i></button>
+          </div>
+          <div id="task-preview" class="task-preview"></div>
+          <div class="note-actions">
+            <div class="color-picker">
+              <button class="color-btn active" data-color=""></button>
+              <button class="color-btn" data-color="#f28b82"></button>
+              <button class="color-btn" data-color="#fbbc04"></button>
+              <button class="color-btn" data-color="#fff475"></button>
+              <button class="color-btn" data-color="#ccff90"></button>
+              <button class="color-btn" data-color="#a7ffeb"></button>
+              <button class="color-btn" data-color="#cbf0f8"></button>
+              <button class="color-btn" data-color="#aecbfa"></button>
+              <button class="color-btn" data-color="#d7aefb"></button>
+              <button class="color-btn" data-color="#fdcfe8"></button>
+              <button class="color-btn" data-color="#e8eaed"></button>
+            </div>
+            <button id="save-note-btn" class="btn-primary btn-sm">Añadir nota</button>
+          </div>
+        </div>
+
+        <!-- Notes grid -->
+        <div id="notes-grid" class="notes-grid"></div>
+        <p id="empty-msg" class="empty-msg">No hay notas. ¡Crea una!</p>
+      </main>
+    </div>
+  </div>
+
+  <!-- Note detail modal -->
+  <div id="note-modal" class="modal hidden">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <input type="text" id="modal-title" class="modal-title-input" maxlength="200">
+        <button class="icon-btn" id="modal-pin" title="Fijar"><i class="far fa-star"></i></button>
+        <button class="icon-btn" id="modal-close" title="Cerrar"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="modal-color-picker">
+        <button class="color-btn active" data-color=""></button>
+        <button class="color-btn" data-color="#f28b82"></button>
+        <button class="color-btn" data-color="#fbbc04"></button>
+        <button class="color-btn" data-color="#fff475"></button>
+        <button class="color-btn" data-color="#ccff90"></button>
+        <button class="color-btn" data-color="#a7ffeb"></button>
+        <button class="color-btn" data-color="#cbf0f8"></button>
+        <button class="color-btn" data-color="#aecbfa"></button>
+        <button class="color-btn" data-color="#d7aefb"></button>
+        <button class="color-btn" data-color="#fdcfe8"></button>
+        <button class="color-btn" data-color="#e8eaed"></button>
+      </div>
+      <div class="modal-tasks" id="modal-tasks"></div>
+      <div class="modal-add-task">
+        <input type="text" id="modal-task-input" placeholder="+ Añadir tarea" maxlength="500">
+      </div>
+      <div class="modal-footer">
+        <button id="modal-check-all" class="btn-outline btn-sm">✓ Marcar todas</button>
+        <button id="modal-delete-note" class="btn-outline btn-sm danger">🗑 Eliminar nota</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,39 @@
+# .NET
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.userprefs
+packages/
+*.nupkg
+
+# ASP.NET Core
+appsettings.*.local.json
+**/appsettings.*.local.*
+
+# User Secrets
+secrets.json
+**/secrets.json
+
+# SQLite databases
+*.db
+*.db-shm
+*.db-wal
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build
+[Bb]uild/
+[Dd]ebug/
+[Rr]elease/
