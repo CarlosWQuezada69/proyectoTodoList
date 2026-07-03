@@ -1,11 +1,14 @@
 const API = '';
 let token = localStorage.getItem('token');
 let notas = [];
+let etiquetas = [];
 let currentNota = null;
 let selectedColor = '';
 let pendingTasks = [];
 let darkMode = localStorage.getItem('darkMode') === 'true';
-let isLoading = false;
+let listView = localStorage.getItem('listView') === 'true';
+let showArchived = false;
+let filterLabelId = null;
 
 const $ = id => document.getElementById(id);
 const authSection = $('auth-section');
@@ -17,7 +20,8 @@ const registerError = $('register-error');
 const userDisplay = $('user-display');
 const logoutBtn = $('logout-btn');
 const darkToggle = $('dark-toggle');
-const notesGrid = $('notes-grid');
+const viewToggle = $('view-toggle');
+const notesContainer = $('notes-container');
 const emptyMsg = $('empty-msg');
 const emptyIcon = $('empty-icon');
 const emptyText = $('empty-text');
@@ -38,17 +42,30 @@ const modalContentInput = $('modal-content');
 const modalTaskInput = $('modal-task-input');
 const modalClose = $('modal-close');
 const modalPin = $('modal-pin');
+const modalArchive = $('modal-archive');
 const modalCheckAll = $('modal-check-all');
 const modalDeleteNote = $('modal-delete-note');
+const modalRestoreNote = $('modal-restore-note');
+const modalReminder = $('modal-reminder');
+const modalReminderClear = $('modal-reminder-clear');
+const modalEtiquetas = $('modal-etiquetas');
+const modalEtiquetaSelect = $('modal-etiqueta-select');
+const modalEtiquetaAdd = $('modal-etiqueta-add');
 const addNoteCard = $('add-note-card');
 const toast = $('toast');
+const viewNotesBtn = $('view-notes-btn');
+const viewArchivedBtn = $('view-archived-btn');
+const labelsBar = $('labels-bar');
+const labelsScroll = $('labels-scroll');
+const filterBar = $('filter-bar');
+const filterLabels = $('filter-labels');
 
 if (darkMode) document.documentElement.setAttribute('data-theme', 'dark');
 updateDarkIcon();
+updateViewIcon();
 
-// Toast ---------------------------------------------------------------
+// Toast
 let toastTimer;
-
 function showToast(msg, type = '') {
   clearTimeout(toastTimer);
   toast.textContent = msg;
@@ -57,7 +74,7 @@ function showToast(msg, type = '') {
   toastTimer = setTimeout(() => toast.classList.add('hidden'), 3000);
 }
 
-// Loading state --------------------------------------------------------
+// Loading
 function setLoading(btn, loading) {
   if (!btn) return;
   if (loading) {
@@ -95,16 +112,13 @@ loginForm.addEventListener('submit', async (e) => {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password })
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.message || 'Error al iniciar sesión');
-    }
+    if (!res.ok) { const err = await res.json(); throw new Error(err.message || 'Error al iniciar sesión'); }
     const data = await res.json();
     token = data.token;
     localStorage.setItem('token', token);
     userDisplay.textContent = data.username;
     showMain();
-    loadNotas();
+    loadAll();
     showToast('Sesión iniciada', 'success');
   } catch (err) { loginError.textContent = err.message; }
   finally { setLoading(loginForm.querySelector('button[type="submit"]'), false); }
@@ -121,10 +135,7 @@ registerForm.addEventListener('submit', async (e) => {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password })
     });
-    if (!res.ok) {
-      const err = await res.json();
-      throw new Error(err.message || 'Error al registrarse');
-    }
+    if (!res.ok) { const err = await res.json(); throw new Error(err.message || 'Error al registrarse'); }
     document.querySelector('[data-tab="login"]').click();
     $('login-username').value = username;
     loginError.textContent = 'Cuenta creada. Inicia sesión.';
@@ -151,6 +162,37 @@ function updateDarkIcon() {
   darkToggle.innerHTML = darkMode ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
 }
 
+// View toggle
+viewToggle.addEventListener('click', () => {
+  listView = !listView;
+  localStorage.setItem('listView', listView);
+  updateViewIcon();
+  render();
+});
+
+function updateViewIcon() {
+  viewToggle.innerHTML = listView ? '<i class="fas fa-th-large"></i>' : '<i class="fas fa-list"></i>';
+  viewToggle.title = listView ? 'Vista cuadrícula' : 'Vista lista';
+}
+
+// Notes / Archived tabs
+viewNotesBtn.addEventListener('click', () => {
+  showArchived = false;
+  viewNotesBtn.classList.add('active');
+  viewArchivedBtn.classList.remove('active');
+  addNoteCard.classList.remove('hidden');
+  labelsBar.classList.remove('hidden');
+  loadNotas();
+});
+viewArchivedBtn.addEventListener('click', () => {
+  showArchived = true;
+  viewArchivedBtn.classList.add('active');
+  viewNotesBtn.classList.remove('active');
+  addNoteCard.classList.add('hidden');
+  labelsBar.classList.add('hidden');
+  loadNotas();
+});
+
 // API
 async function api(path, options = {}) {
   const headers = { 'Content-Type': 'application/json' };
@@ -171,30 +213,93 @@ async function api(path, options = {}) {
   return text ? JSON.parse(text) : null;
 }
 
-// Notes
+// Load all data
+async function loadAll() {
+  await Promise.all([loadNotas(), loadEtiquetas()]);
+}
+
 async function loadNotas() {
   try {
-    notas = await api('/api/notas');
-    renderNotas(filterNotas());
+    notas = await api(`/api/notas?archivadas=${showArchived}`);
+    render();
   } catch (err) {
-    if (err.message !== 'Sesión expirada') {
-      showToast('Error al cargar notas', 'error');
-    }
+    if (err.message !== 'Sesión expirada') showToast('Error al cargar notas', 'error');
   }
 }
 
-function filterNotas() {
+async function loadEtiquetas() {
+  try {
+    etiquetas = await api('/api/etiquetas');
+    renderLabelsBar();
+    renderFilterLabels();
+  } catch (err) { /* silent */ }
+}
+
+function getFiltered() {
   const q = searchInput.value.toLowerCase();
-  if (!q) return notas;
-  return notas.filter(n => {
-    const titleMatch = n.titulo && n.titulo.toLowerCase().includes(q);
-    const tasksMatch = n.tareas && n.tareas.some(t => t.texto.toLowerCase().includes(q));
-    return titleMatch || tasksMatch;
+  let filtered = notas;
+  if (q) {
+    filtered = filtered.filter(n => {
+      const titleMatch = n.titulo && n.titulo.toLowerCase().includes(q);
+      const contentMatch = n.contenido && n.contenido.toLowerCase().includes(q);
+      const tasksMatch = n.tareas && n.tareas.some(t => t.texto.toLowerCase().includes(q));
+      return titleMatch || contentMatch || tasksMatch;
+    });
+  }
+  if (filterLabelId) {
+    filtered = filtered.filter(n =>
+      n.notaEtiquetas && n.notaEtiquetas.some(ne => ne.etiquetaId === filterLabelId)
+    );
+  }
+  return filtered;
+}
+
+// Labels bar
+function renderLabelsBar() {
+  if (etiquetas.length === 0) { labelsBar.classList.add('hidden'); return; }
+  labelsBar.classList.remove('hidden');
+  labelsScroll.innerHTML = etiquetas.map(e => `
+    <span class="label-chip${filterLabelId === e.id ? ' active' : ''}" data-id="${e.id}">
+      <span class="label-dot" style="background:${e.color || '#888'}"></span>
+      ${escHtml(e.nombre)}
+    </span>
+  `).join('');
+  labelsScroll.querySelectorAll('.label-chip').forEach(el => {
+    el.addEventListener('click', () => {
+      const id = parseInt(el.dataset.id);
+      if (filterLabelId === id) {
+        filterLabelId = null;
+      } else {
+        filterLabelId = id;
+      }
+      renderLabelsBar();
+      render();
+    });
   });
 }
 
+function renderFilterLabels() {
+  filterBar.classList.toggle('hidden', etiquetas.length === 0);
+  filterLabels.innerHTML = etiquetas.map(e => `
+    <span class="label-chip" data-id="${e.id}">
+      <span class="label-dot" style="background:${e.color || '#888'}"></span>
+      ${escHtml(e.nombre)}
+      <i class="fas fa-times" style="font-size:10px;margin-left:4px"></i>
+    </span>
+  `).join('');
+}
+
+// Render
+function render() {
+  renderNotas(getFiltered());
+}
+
 function renderNotas(filtered) {
-  notesGrid.innerHTML = '';
+  const isGridView = !listView;
+  const containerClass = isGridView ? 'notes-grid' : 'notes-list';
+  notesContainer.className = containerClass;
+  notesContainer.innerHTML = '';
+
   const isSearching = searchInput.value.trim().length > 0;
   if (filtered.length === 0) {
     emptyMsg.classList.remove('hidden');
@@ -202,36 +307,126 @@ function renderNotas(filtered) {
       emptyIcon.textContent = '🔍';
       emptyText.textContent = 'Sin resultados';
       emptySub.textContent = 'Prueba con otro término de búsqueda';
+    } else if (showArchived) {
+      emptyIcon.textContent = '📦';
+      emptyText.textContent = 'No hay notas archivadas';
+      emptySub.textContent = 'Archiva notas para que aparezcan aquí';
+    } else if (filterLabelId) {
+      emptyIcon.textContent = '🏷️';
+      emptyText.textContent = 'Sin notas con esa etiqueta';
+      emptySub.textContent = 'Prueba con otra etiqueta';
     } else {
       emptyIcon.textContent = '📝';
       emptyText.textContent = 'No hay notas. ¡Crea una!';
-      emptySub.textContent = 'Escribe un título y añade tareas arriba';
+      emptySub.textContent = 'Escribe un título, contenido y añade tareas';
     }
     return;
   }
   emptyMsg.classList.add('hidden');
-  filtered.forEach(n => {
+
+  filtered.forEach((n, idx) => {
     const card = document.createElement('div');
-    card.className = `note-card${n.isPinned ? ' pinned' : ''}`;
+    card.className = `note-card${n.isPinned ? ' pinned' : ''}${n.archivada ? ' archived' : ''}`;
+    card.draggable = !showArchived;
     if (n.color) card.style.background = n.color;
+
     const content = n.contenido ? escHtml(n.contenido).substring(0, 120) + (n.contenido.length > 120 ? '...' : '') : '';
-    card.innerHTML = `
-      ${n.isPinned ? '<span class="pin-icon"><i class="fas fa-star"></i></span>' : ''}
-      ${n.titulo ? `<div class="card-title">${escHtml(n.titulo)}</div>` : ''}
-      ${content ? `<div class="card-content">${content}</div>` : ''}
-      <div class="card-tasks">
-        ${(n.tareas || []).slice(0, 3).map(t => `
-          <div class="ct-item${t.completada ? ' done' : ''}">
-            <span class="ct-check">${t.completada ? '✓' : ''}</span>
-            ${escHtml(t.texto)}
-          </div>
-        `).join('')}
-        ${n.tareas && n.tareas.length > 3 ? `<div class="ct-item" style="color:var(--text-secondary)">+${n.tareas.length - 3} más</div>` : ''}
-      </div>
-    `;
+    const labels = (n.notaEtiquetas || []).map(ne => ({
+      id: ne.etiquetaId,
+      nombre: ne.etiqueta?.nombre || '',
+      color: ne.etiqueta?.color || '#888'
+    }));
+    const hasReminder = n.recordatorio;
+
+    if (isGridView) {
+      card.innerHTML = `
+        ${n.isPinned ? '<span class="pin-icon"><i class="fas fa-star"></i></span>' : ''}
+        ${n.titulo ? `<div class="card-title">${escHtml(n.titulo)}</div>` : ''}
+        ${content ? `<div class="card-content">${content}</div>` : ''}
+        ${hasReminder ? `<div class="card-reminder"><i class="fas fa-bell"></i> ${formatDate(n.recordatorio)}</div>` : ''}
+        ${labels.length > 0 ? `<div class="card-labels">${labels.map(l => `<span class="card-label">${escHtml(l.nombre)}</span>`).join('')}</div>` : ''}
+        <div class="card-tasks">
+          ${(n.tareas || []).slice(0, 3).map(t => `
+            <div class="ct-item${t.completada ? ' done' : ''}">
+              <span class="ct-check">${t.completada ? '✓' : ''}</span>
+              ${escHtml(t.texto)}
+            </div>
+          `).join('')}
+          ${n.tareas && n.tareas.length > 3 ? `<div class="ct-item" style="color:var(--text-secondary)">+${n.tareas.length - 3} más</div>` : ''}
+        </div>
+      `;
+    } else {
+      const tasksPreview = (n.tareas || []).slice(0, 2).map(t =>
+        `<span class="ct-item${t.completada ? ' done' : ''}">${escHtml(t.texto)}</span>`
+      ).join('');
+      card.innerHTML = `
+        ${n.isPinned ? '<span class="pin-icon"><i class="fas fa-star"></i></span>' : ''}
+        <div class="card-title">${n.titulo ? escHtml(n.titulo) : '<span style="color:var(--text-secondary)">Sin título</span>'}</div>
+        ${content ? `<div class="card-content">${content}</div>` : ''}
+        ${n.tareas && n.tareas.length > 0 ? `<div class="card-tasks">${tasksPreview}</div>` : ''}
+        <div class="card-meta">
+          ${hasReminder ? `<div class="card-reminder"><i class="fas fa-bell"></i> ${formatDate(n.recordatorio)}</div>` : ''}
+          ${labels.length > 0 ? `<div class="card-labels">${labels.map(l => `<span class="card-label">${escHtml(l.nombre)}</span>`).join('')}</div>` : ''}
+        </div>
+      `;
+    }
+
+    // Drag & drop
+    card.addEventListener('dragstart', (e) => {
+      if (showArchived) return;
+      card.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', n.id);
+    });
+    card.addEventListener('dragend', () => card.classList.remove('dragging'));
+    card.addEventListener('dragover', (e) => {
+      if (showArchived) return;
+      e.preventDefault();
+      card.classList.add('drag-over');
+    });
+    card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
+    card.addEventListener('drop', async (e) => {
+      if (showArchived) return;
+      e.preventDefault();
+      card.classList.remove('drag-over');
+      const draggedId = parseInt(e.dataTransfer.getData('text/plain'));
+      if (draggedId === n.id) return;
+      await reorderNotas(draggedId, n.id);
+    });
+
     card.addEventListener('click', () => openModal(n));
-    notesGrid.appendChild(card);
+    notesContainer.appendChild(card);
   });
+}
+
+async function reorderNotas(draggedId, targetId) {
+  const draggedIdx = notas.findIndex(n => n.id === draggedId);
+  const targetIdx = notas.findIndex(n => n.id === targetId);
+  if (draggedIdx === -1 || targetIdx === -1) return;
+
+  const [removed] = notas.splice(draggedIdx, 1);
+  notas.splice(targetIdx, 0, removed);
+
+  render();
+  try {
+    for (let i = 0; i < notas.length; i++) {
+      await api(`/api/notas/${notas[i].id}/reorder`, {
+        method: 'PUT', body: JSON.stringify({ orden: i })
+      });
+    }
+  } catch (err) {
+    showToast('Error al reordenar', 'error');
+    loadNotas();
+  }
+}
+
+function formatDate(d) {
+  if (!d) return '';
+  const date = new Date(d);
+  const now = new Date();
+  const opts = { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' };
+  if (date.getFullYear() !== now.getFullYear()) opts.year = 'numeric';
+  return date.toLocaleDateString('es', opts);
 }
 
 function escHtml(s) {
@@ -318,7 +513,7 @@ async function createNote() {
 }
 
 // Modal
-function openModal(nota) {
+async function openModal(nota) {
   currentNota = nota;
   modalTitle.value = nota.titulo || '';
   modalContentInput.value = nota.contenido || '';
@@ -326,6 +521,13 @@ function openModal(nota) {
   renderModalTasks();
   updateModalPin();
   updateModalColor();
+  updateModalArchive();
+  updateModalReminder();
+  renderModalEtiquetas();
+  updateModalEtiquetaSelect();
+  modalRestoreNote.classList.toggle('hidden', !nota.archivada);
+  modalDeleteNote.classList.toggle('hidden', nota.archivada);
+  modalArchive.classList.toggle('hidden', nota.archivada);
 }
 
 function closeModal() {
@@ -407,6 +609,152 @@ function updateModalPin() {
   }
 }
 
+// Modal archive / restore
+modalArchive.addEventListener('click', async () => {
+  if (!currentNota) return;
+  try {
+    await api(`/api/notas/${currentNota.id}/archive`, { method: 'PUT' });
+    closeModal();
+    showToast('Nota archivada', 'success');
+    loadNotas();
+  } catch (err) { showToast('Error al archivar', 'error'); }
+});
+
+modalRestoreNote.addEventListener('click', async () => {
+  if (!currentNota) return;
+  try {
+    await api(`/api/notas/${currentNota.id}/restore`, { method: 'PUT' });
+    closeModal();
+    showToast('Nota restaurada', 'success');
+    loadNotas();
+  } catch (err) { showToast('Error al restaurar', 'error'); }
+});
+
+function updateModalArchive() {
+  if (currentNota?.archivada) {
+    modalArchive.querySelector('i').className = 'fas fa-archive';
+    modalArchive.title = 'Archivada';
+  } else {
+    modalArchive.querySelector('i').className = 'fas fa-archive';
+    modalArchive.title = 'Archivar';
+  }
+}
+
+// Modal reminder
+modalReminder.addEventListener('change', async () => {
+  if (!currentNota) return;
+  const val = modalReminder.value;
+  const reminderDate = val ? new Date(val).toISOString() : null;
+  try {
+    currentNota.recordatorio = reminderDate;
+    await api(`/api/notas/${currentNota.id}`, {
+      method: 'PUT', body: JSON.stringify(currentNota)
+    });
+    updateModalReminderClear(!!val);
+    loadNotas();
+    showToast(val ? 'Recordatorio guardado' : 'Recordatorio eliminado', 'success');
+  } catch (err) { showToast('Error al guardar recordatorio', 'error'); }
+});
+
+modalReminderClear.addEventListener('click', () => {
+  modalReminder.value = '';
+  modalReminder.dispatchEvent(new Event('change'));
+});
+
+function updateModalReminder() {
+  if (currentNota?.recordatorio) {
+    const d = new Date(currentNota.recordatorio);
+    const pad = n => String(n).padStart(2, '0');
+    modalReminder.value = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    updateModalReminderClear(true);
+  } else {
+    modalReminder.value = '';
+    updateModalReminderClear(false);
+  }
+}
+
+function updateModalReminderClear(show) {
+  modalReminderClear.classList.toggle('hidden', !show);
+}
+
+// Modal etiquetas
+function renderModalEtiquetas() {
+  if (!currentNota) return;
+  const noteLabels = currentNota.notaEtiquetas || [];
+  if (noteLabels.length === 0) {
+    modalEtiquetas.innerHTML = '<div style="font-size:12px;color:var(--text-secondary);padding:4px 0">Sin etiquetas</div>';
+    return;
+  }
+  modalEtiquetas.innerHTML = noteLabels.map(ne => `
+    <span class="modal-etiqueta-chip" data-etiqueta-id="${ne.etiquetaId}">
+      <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${ne.etiqueta?.color || '#888'};flex-shrink:0"></span>
+      ${escHtml(ne.etiqueta?.nombre || '')}
+      <span class="rem"><i class="fas fa-times"></i></span>
+    </span>
+  `).join('');
+  modalEtiquetas.querySelectorAll('.modal-etiqueta-chip').forEach(el => {
+    el.addEventListener('click', async () => {
+      const etiquetaId = parseInt(el.dataset.etiquetaId);
+      try {
+        await api(`/api/etiquetas/${etiquetaId}/notas/${currentNota.id}`, { method: 'DELETE' });
+        currentNota.notaEtiquetas = currentNota.notaEtiquetas.filter(ne => ne.etiquetaId !== etiquetaId);
+        renderModalEtiquetas();
+        loadNotas();
+        showToast('Etiqueta quitada', 'success');
+      } catch (err) { showToast('Error', 'error'); }
+    });
+  });
+}
+
+function updateModalEtiquetaSelect() {
+  const usedIds = new Set((currentNota?.notaEtiquetas || []).map(ne => ne.etiquetaId));
+  const available = etiquetas.filter(e => !usedIds.has(e.id));
+  modalEtiquetaSelect.innerHTML = '<option value="">Seleccionar etiqueta...</option>'
+    + available.map(e => `<option value="${e.id}">${escHtml(e.nombre)}</option>`).join('');
+}
+
+modalEtiquetaAdd.addEventListener('click', async () => {
+  if (!currentNota || !modalEtiquetaSelect.value) return;
+  const etiquetaId = parseInt(modalEtiquetaSelect.value);
+  try {
+    await api(`/api/etiquetas/${etiquetaId}/notas/${currentNota.id}`, { method: 'POST' });
+    if (!currentNota.notaEtiquetas) currentNota.notaEtiquetas = [];
+    const etiqueta = etiquetas.find(e => e.id === etiquetaId);
+    if (etiqueta) {
+      currentNota.notaEtiquetas.push({ etiquetaId, etiqueta });
+    }
+    renderModalEtiquetas();
+    updateModalEtiquetaSelect();
+    loadNotas();
+    showToast('Etiqueta añadida', 'success');
+  } catch (err) { showToast('Error', 'error'); }
+});
+
+// Create new label button in select area
+const createLabelBtn = document.createElement('button');
+createLabelBtn.className = 'btn-sm btn-outline';
+createLabelBtn.textContent = '+ Nueva';
+createLabelBtn.addEventListener('click', () => {
+  const name = prompt('Nombre de la nueva etiqueta:');
+  if (!name || !name.trim()) return;
+  const color = prompt('Color (opcional, ej: #f28b82):') || '#888';
+  createEtiqueta(name.trim(), color);
+});
+modalEtiquetaAdd.parentNode.appendChild(createLabelBtn);
+
+async function createEtiqueta(nombre, color) {
+  try {
+    const e = await api('/api/etiquetas', {
+      method: 'POST', body: JSON.stringify({ nombre, color })
+    });
+    etiquetas.push(e);
+    renderLabelsBar();
+    renderFilterLabels();
+    updateModalEtiquetaSelect();
+    showToast('Etiqueta creada', 'success');
+  } catch (err) { showToast('Error al crear etiqueta', 'error'); }
+}
+
 // Modal tasks
 function renderModalTasks() {
   if (!currentNota) return;
@@ -430,7 +778,6 @@ function renderModalTasks() {
       deleteTask(parseInt(el.dataset.id));
     });
   });
-  // Inline edit
   modalTasks.querySelectorAll('.m-text').forEach((el, i) => {
     el.addEventListener('dblclick', () => startInlineEdit(el, tasks[i]));
   });
@@ -454,7 +801,6 @@ async function deleteTask(id) {
   } catch (err) { showToast('Error al eliminar tarea', 'error'); }
 }
 
-// Inline edit task
 function startInlineEdit(el, task) {
   const orig = task.texto;
   el.contentEditable = 'true';
@@ -537,13 +883,13 @@ modalDeleteNote.addEventListener('click', async () => {
 let searchTimeout;
 searchInput.addEventListener('input', () => {
   clearTimeout(searchTimeout);
-  searchTimeout = setTimeout(() => renderNotas(filterNotas()), 200);
+  searchTimeout = setTimeout(() => render(), 200);
 });
 
 // Init
 if (token) {
   showMain();
-  loadNotas();
+  loadAll();
 } else {
   showAuth();
 }

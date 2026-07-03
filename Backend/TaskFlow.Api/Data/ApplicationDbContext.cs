@@ -11,6 +11,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<Usuario> Usuarios { get; set; }
     public DbSet<Nota> Notas { get; set; }
     public DbSet<Tarea> Tareas { get; set; }
+    public DbSet<Etiqueta> Etiquetas { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -25,5 +26,18 @@ public class ApplicationDbContext : DbContext
             .WithOne(n => n.Usuario)
             .HasForeignKey(n => n.UsuarioId)
             .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<NotaEtiqueta>(entity =>
+        {
+            entity.HasKey(ne => new { ne.NotaId, ne.EtiquetaId });
+            entity.HasOne(ne => ne.Nota)
+                .WithMany(n => n.NotaEtiquetas)
+                .HasForeignKey(ne => ne.NotaId)
+                .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(ne => ne.Etiqueta)
+                .WithMany()
+                .HasForeignKey(ne => ne.EtiquetaId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
     }
 }

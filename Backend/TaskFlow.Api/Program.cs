@@ -26,6 +26,7 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<INotaRepository, NotaRepository>();
 builder.Services.AddScoped<ITareaRepository, TareaRepository>();
+builder.Services.AddScoped<IEtiquetaRepository, EtiquetaRepository>();
 builder.Services.AddSingleton<IJwtService, JwtService>();
 
 // CORS -----------------------------------------------------------------------

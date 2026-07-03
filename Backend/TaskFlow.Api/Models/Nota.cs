@@ -20,6 +20,14 @@ public class Nota
 
     public bool IsPinned { get; set; }
 
+    public bool Archivada { get; set; }
+
+    public DateTime? FechaArchivado { get; set; }
+
+    public DateTime? Recordatorio { get; set; }
+
+    public int Orden { get; set; }
+
     public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;
 
     public int UsuarioId { get; set; }
@@ -29,4 +37,7 @@ public class Nota
 
     [ValidateNever]
     public ICollection<Tarea> Tareas { get; set; } = new List<Tarea>();
+
+    [ValidateNever]
+    public ICollection<NotaEtiqueta> NotaEtiquetas { get; set; } = new List<NotaEtiqueta>();
 }

@@ -53,20 +53,26 @@
           <span class="logo">📝</span>
           <h1>TaskFlow</h1>
         </div>
+        <div class="header-tabs">
+          <button id="view-notes-btn" class="header-tab active" data-view="notes"><i class="fas fa-sticky-note"></i> Notas</button>
+          <button id="view-archived-btn" class="header-tab" data-view="archived"><i class="fas fa-archive"></i> Archivadas</button>
+        </div>
         <div class="header-search">
           <i class="fas fa-search"></i>
           <input type="text" id="search-input" placeholder="Buscar notas...">
         </div>
         <div class="header-right">
-          <button id="dark-toggle" class="icon-btn" title="Modo oscuro">
-            <i class="fas fa-moon"></i>
-          </button>
+          <button id="view-toggle" class="icon-btn" title="Vista lista"><i class="fas fa-list"></i></button>
+          <button id="dark-toggle" class="icon-btn" title="Modo oscuro"><i class="fas fa-moon"></i></button>
           <span id="user-display" class="user-name"></span>
-          <button id="logout-btn" class="icon-btn" title="Cerrar sesión">
-            <i class="fas fa-sign-out-alt"></i>
-          </button>
+          <button id="logout-btn" class="icon-btn" title="Cerrar sesión"><i class="fas fa-sign-out-alt"></i></button>
         </div>
       </header>
+
+      <!-- Labels bar -->
+      <div id="labels-bar" class="labels-bar hidden">
+        <div class="labels-scroll" id="labels-scroll"></div>
+      </div>
 
       <main>
         <!-- Add note -->
@@ -97,12 +103,17 @@
           <p id="note-error" class="error-msg" style="margin-top:8px"></p>
         </div>
 
-        <!-- Notes grid -->
-        <div id="notes-grid" class="notes-grid"></div>
+        <!-- Filter labels -->
+        <div id="filter-bar" class="filter-bar hidden">
+          <div class="filter-labels" id="filter-labels"></div>
+        </div>
+
+        <!-- Notes grid/list -->
+        <div id="notes-container"></div>
         <div id="empty-msg" class="empty-state">
           <div class="empty-icon" id="empty-icon">📝</div>
-          <p id="empty-text">No hay notas. ¡Crea una!</p>
-          <p id="empty-sub" class="empty-sub">Escribe un título, contenido y añade tareas</p>
+          <p id="empty-text">No hay notas</p>
+          <p id="empty-sub" class="empty-sub">Crea tu primera nota</p>
         </div>
       </main>
     </div>
@@ -114,6 +125,7 @@
     <div class="modal-content">
       <div class="modal-header">
         <input type="text" id="modal-title" class="modal-title-input" maxlength="200">
+        <button class="icon-btn" id="modal-archive" title="Archivar"><i class="fas fa-archive"></i></button>
         <button class="icon-btn" id="modal-pin" title="Fijar"><i class="far fa-star"></i></button>
         <button class="icon-btn" id="modal-close" title="Cerrar"><i class="fas fa-times"></i></button>
       </div>
@@ -130,15 +142,31 @@
         <button class="color-btn" data-color="#fdcfe8"></button>
         <button class="color-btn" data-color="#e8eaed"></button>
       </div>
+      <!-- Recordatorio -->
+      <div class="reminder-row">
+        <i class="fas fa-bell"></i>
+        <input type="datetime-local" id="modal-reminder">
+        <button id="modal-reminder-clear" class="btn-outline btn-sm hidden" title="Quitar recordatorio"><i class="fas fa-times"></i></button>
+      </div>
       <textarea id="modal-content" class="modal-content-input" placeholder="Escribe tu nota aquí..." maxlength="5000" rows="4"></textarea>
-      <div class="modal-section-label"><i class="fas fa-check-circle"></i> Lista de tareas</div>
+
+      <!-- Etiquetas -->
+      <div class="modal-section-label"><i class="fas fa-tags"></i> Etiquetas</div>
+      <div class="modal-etiquetas" id="modal-etiquetas"></div>
+      <div class="modal-add-etiqueta">
+        <select id="modal-etiqueta-select"></select>
+        <button id="modal-etiqueta-add" class="btn-sm btn-outline">+</button>
+      </div>
+
+      <div class="modal-section-label" style="margin-top:12px"><i class="fas fa-check-circle"></i> Lista de tareas</div>
       <div class="modal-tasks" id="modal-tasks"></div>
       <div class="modal-add-task">
         <input type="text" id="modal-task-input" placeholder="+ Añadir tarea" maxlength="500">
       </div>
       <div class="modal-footer">
         <button id="modal-check-all" class="btn-outline btn-sm">✓ Marcar todas</button>
-        <button id="modal-delete-note" class="btn-outline btn-sm danger">🗑 Eliminar nota</button>
+        <button id="modal-restore-note" class="btn-outline btn-sm hidden">Restaurar</button>
+        <button id="modal-delete-note" class="btn-outline btn-sm danger">🗑 Eliminar</button>
       </div>
     </div>
   </div>

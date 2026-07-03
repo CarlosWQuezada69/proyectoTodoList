@@ -21,10 +21,9 @@ public class NotasController : ControllerBase
     private int UserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<Nota>>> GetAll()
+    public async Task<ActionResult<IEnumerable<Nota>>> GetAll([FromQuery] bool archivadas = false)
     {
-        var notas = await _notaRepo.GetAllByUserAsync(UserId);
-        return Ok(notas);
+        return Ok(await _notaRepo.GetAllByUserAsync(UserId, archivadas));
     }
 
     [HttpGet("{id}")]
@@ -48,8 +47,7 @@ public class NotasController : ControllerBase
     public async Task<IActionResult> Update(int id, [FromBody] Nota nota)
     {
         if (id != nota.Id) return BadRequest();
-        var existing = await _notaRepo.GetByIdAsync(id);
-        if (existing == null || existing.UsuarioId != UserId) return NotFound();
+        if (!await UserOwnsNota(id)) return NotFound();
         nota.UsuarioId = UserId;
         await _notaRepo.UpdateAsync(nota);
         return NoContent();
@@ -80,6 +78,30 @@ public class NotasController : ControllerBase
         return NoContent();
     }
 
+    [HttpPut("{id}/archive")]
+    public async Task<IActionResult> Archive(int id)
+    {
+        if (!await UserOwnsNota(id)) return NotFound();
+        await _notaRepo.ArchiveAsync(id);
+        return NoContent();
+    }
+
+    [HttpPut("{id}/restore")]
+    public async Task<IActionResult> Restore(int id)
+    {
+        if (!await UserOwnsNota(id)) return NotFound();
+        await _notaRepo.RestoreAsync(id);
+        return NoContent();
+    }
+
+    [HttpPut("{id}/reorder")]
+    public async Task<IActionResult> Reorder(int id, [FromBody] ReorderRequest request)
+    {
+        if (!await UserOwnsNota(id)) return NotFound();
+        await _notaRepo.UpdateOrderAsync(id, request.Orden);
+        return NoContent();
+    }
+
     private async Task<bool> UserOwnsNota(int notaId)
     {
         var nota = await _notaRepo.GetByIdAsync(notaId);
@@ -90,4 +112,9 @@ public class NotasController : ControllerBase
 public class ColorRequest
 {
     public string? Color { get; set; }
+}
+
+public class ReorderRequest
+{
+    public int Orden { get; set; }
 }
