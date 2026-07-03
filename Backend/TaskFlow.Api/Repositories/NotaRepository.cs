@@ -56,14 +56,17 @@ public class NotaRepository : INotaRepository
                 .SetProperty(n => n.IsPinned, nota.IsPinned)
                 .SetProperty(n => n.Archivada, nota.Archivada)
                 .SetProperty(n => n.Recordatorio, nota.Recordatorio)
-                .SetProperty(n => n.Orden, nota.Orden));
+                .SetProperty(n => n.Orden, nota.Orden)
+                .SetProperty(n => n.FechaModificacion, DateTime.UtcNow));
     }
 
     public async Task UpdateColorAsync(int id, string? color)
     {
         await _context.Notas
             .Where(n => n.Id == id)
-            .ExecuteUpdateAsync(setters => setters.SetProperty(n => n.Color, color));
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(n => n.Color, color)
+                .SetProperty(n => n.FechaModificacion, DateTime.UtcNow));
     }
 
     public async Task TogglePinAsync(int id)
@@ -71,7 +74,8 @@ public class NotaRepository : INotaRepository
         await _context.Notas
             .Where(n => n.Id == id)
             .ExecuteUpdateAsync(setters =>
-                setters.SetProperty(n => n.IsPinned, n => !n.IsPinned));
+                setters.SetProperty(n => n.IsPinned, n => !n.IsPinned)
+                       .SetProperty(n => n.FechaModificacion, DateTime.UtcNow));
     }
 
     public async Task ArchiveAsync(int id)
@@ -80,7 +84,8 @@ public class NotaRepository : INotaRepository
             .Where(n => n.Id == id)
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(n => n.Archivada, true)
-                .SetProperty(n => n.FechaArchivado, DateTime.UtcNow));
+                .SetProperty(n => n.FechaArchivado, DateTime.UtcNow)
+                .SetProperty(n => n.FechaModificacion, DateTime.UtcNow));
     }
 
     public async Task RestoreAsync(int id)
@@ -89,14 +94,17 @@ public class NotaRepository : INotaRepository
             .Where(n => n.Id == id)
             .ExecuteUpdateAsync(setters => setters
                 .SetProperty(n => n.Archivada, false)
-                .SetProperty(n => n.FechaArchivado, (DateTime?)null));
+                .SetProperty(n => n.FechaArchivado, (DateTime?)null)
+                .SetProperty(n => n.FechaModificacion, DateTime.UtcNow));
     }
 
     public async Task UpdateOrderAsync(int id, int orden)
     {
         await _context.Notas
             .Where(n => n.Id == id)
-            .ExecuteUpdateAsync(setters => setters.SetProperty(n => n.Orden, orden));
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(n => n.Orden, orden)
+                .SetProperty(n => n.FechaModificacion, DateTime.UtcNow));
     }
 
     public async Task DeleteAsync(Nota nota)

@@ -30,6 +30,8 @@ public class Nota
 
     public DateTime FechaCreacion { get; set; } = DateTime.UtcNow;
 
+    public DateTime FechaModificacion { get; set; } = DateTime.UtcNow;
+
     public int UsuarioId { get; set; }
 
     [JsonIgnore, ValidateNever]

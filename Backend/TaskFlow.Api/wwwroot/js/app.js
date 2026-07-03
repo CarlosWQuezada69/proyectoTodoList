@@ -337,6 +337,7 @@ function renderNotas(filtered) {
       color: ne.etiqueta?.color || '#888'
     }));
     const hasReminder = n.recordatorio;
+    const fecha = n.fechaModificacion || n.fechaCreacion;
 
     if (isGridView) {
       card.innerHTML = `
@@ -354,6 +355,7 @@ function renderNotas(filtered) {
           `).join('')}
           ${n.tareas && n.tareas.length > 3 ? `<div class="ct-item" style="color:var(--text-secondary)">+${n.tareas.length - 3} más</div>` : ''}
         </div>
+        <div class="card-date">${fecha ? formatDateTime(fecha) : ''}</div>
       `;
     } else {
       const tasksPreview = (n.tareas || []).slice(0, 2).map(t =>
@@ -367,6 +369,7 @@ function renderNotas(filtered) {
         <div class="card-meta">
           ${hasReminder ? `<div class="card-reminder"><i class="fas fa-bell"></i> ${formatDate(n.recordatorio)}</div>` : ''}
           ${labels.length > 0 ? `<div class="card-labels">${labels.map(l => `<span class="card-label">${escHtml(l.nombre)}</span>`).join('')}</div>` : ''}
+          <span class="card-date">${fecha ? formatDateTime(fecha) : ''}</span>
         </div>
       `;
     }
@@ -424,6 +427,24 @@ function formatDate(d) {
   if (!d) return '';
   const date = new Date(d);
   const now = new Date();
+  const opts = { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' };
+  if (date.getFullYear() !== now.getFullYear()) opts.year = 'numeric';
+  return date.toLocaleDateString('es', opts);
+}
+
+function formatDateTime(d) {
+  if (!d) return '';
+  const date = new Date(d);
+  const now = new Date();
+  const diff = now - date;
+  if (diff < 60000) return 'Justo ahora';
+  if (diff < 3600000) return `Hace ${Math.floor(diff / 60000)} min`;
+  if (diff < 86400000 && date.getDate() === now.getDate()) {
+    return `Hoy ${date.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}`;
+  }
+  if (diff < 172800000 && date.getDate() === now.getDate() - 1) {
+    return `Ayer ${date.toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' })}`;
+  }
   const opts = { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' };
   if (date.getFullYear() !== now.getFullYear()) opts.year = 'numeric';
   return date.toLocaleDateString('es', opts);
@@ -518,6 +539,14 @@ async function openModal(nota) {
   modalTitle.value = nota.titulo || '';
   modalContentInput.value = nota.contenido || '';
   modal.classList.remove('hidden');
+
+  const datesDiv = $('modal-dates');
+  const created = nota.fechaCreacion ? `Creado ${formatDateTime(nota.fechaCreacion)}` : '';
+  const modified = nota.fechaModificacion ? `Modificado ${formatDateTime(nota.fechaModificacion)}` : '';
+  datesDiv.innerHTML = created
+    ? `<span><i class="far fa-calendar-alt"></i> ${created}</span><span><i class="far fa-edit"></i> ${modified}</span>`
+    : '';
+
   renderModalTasks();
   updateModalPin();
   updateModalColor();
