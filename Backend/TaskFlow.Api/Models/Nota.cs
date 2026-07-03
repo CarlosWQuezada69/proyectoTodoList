@@ -12,6 +12,9 @@ public class Nota
     [MaxLength(200)]
     public string? Titulo { get; set; }
 
+    [MaxLength(5000)]
+    public string? Contenido { get; set; }
+
     [MaxLength(7)]
     public string? Color { get; set; }
 

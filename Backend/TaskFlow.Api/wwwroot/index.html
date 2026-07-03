@@ -72,6 +72,7 @@
         <!-- Add note -->
         <div class="add-note-card" id="add-note-card">
           <input type="text" id="note-title-input" placeholder="Título..." maxlength="200">
+          <textarea id="note-content-input" class="note-content-input" placeholder="Escribe tu nota aquí..." maxlength="5000" rows="3"></textarea>
           <div class="add-task-row">
             <input type="text" id="task-input" placeholder="Nueva tarea..." maxlength="500">
             <button id="add-task-btn" class="btn-icon"><i class="fas fa-plus"></i></button>
@@ -101,7 +102,7 @@
         <div id="empty-msg" class="empty-state">
           <div class="empty-icon" id="empty-icon">📝</div>
           <p id="empty-text">No hay notas. ¡Crea una!</p>
-          <p id="empty-sub" class="empty-sub">Escribe un título y añade tareas arriba</p>
+          <p id="empty-sub" class="empty-sub">Escribe un título, contenido y añade tareas</p>
         </div>
       </main>
     </div>
@@ -129,6 +130,8 @@
         <button class="color-btn" data-color="#fdcfe8"></button>
         <button class="color-btn" data-color="#e8eaed"></button>
       </div>
+      <textarea id="modal-content" class="modal-content-input" placeholder="Escribe tu nota aquí..." maxlength="5000" rows="4"></textarea>
+      <div class="modal-section-label"><i class="fas fa-check-circle"></i> Lista de tareas</div>
       <div class="modal-tasks" id="modal-tasks"></div>
       <div class="modal-add-task">
         <input type="text" id="modal-task-input" placeholder="+ Añadir tarea" maxlength="500">

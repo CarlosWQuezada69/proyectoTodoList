@@ -23,6 +23,7 @@ const emptyIcon = $('empty-icon');
 const emptyText = $('empty-text');
 const emptySub = $('empty-sub');
 const noteTitleInput = $('note-title-input');
+const noteContentInput = $('note-content-input');
 const taskInput = $('task-input');
 const addTaskBtn = $('add-task-btn');
 const taskPreview = $('task-preview');
@@ -33,6 +34,7 @@ const modal = $('note-modal');
 const modalContent = modal?.querySelector('.modal-content');
 const modalTitle = $('modal-title');
 const modalTasks = $('modal-tasks');
+const modalContentInput = $('modal-content');
 const modalTaskInput = $('modal-task-input');
 const modalClose = $('modal-close');
 const modalPin = $('modal-pin');
@@ -212,17 +214,19 @@ function renderNotas(filtered) {
     const card = document.createElement('div');
     card.className = `note-card${n.isPinned ? ' pinned' : ''}`;
     if (n.color) card.style.background = n.color;
+    const content = n.contenido ? escHtml(n.contenido).substring(0, 120) + (n.contenido.length > 120 ? '...' : '') : '';
     card.innerHTML = `
       ${n.isPinned ? '<span class="pin-icon"><i class="fas fa-star"></i></span>' : ''}
       ${n.titulo ? `<div class="card-title">${escHtml(n.titulo)}</div>` : ''}
+      ${content ? `<div class="card-content">${content}</div>` : ''}
       <div class="card-tasks">
-        ${(n.tareas || []).slice(0, 4).map(t => `
+        ${(n.tareas || []).slice(0, 3).map(t => `
           <div class="ct-item${t.completada ? ' done' : ''}">
             <span class="ct-check">${t.completada ? '✓' : ''}</span>
             ${escHtml(t.texto)}
           </div>
         `).join('')}
-        ${n.tareas && n.tareas.length > 4 ? `<div class="ct-item" style="color:var(--text-secondary)">+${n.tareas.length - 4} más</div>` : ''}
+        ${n.tareas && n.tareas.length > 3 ? `<div class="ct-item" style="color:var(--text-secondary)">+${n.tareas.length - 3} más</div>` : ''}
       </div>
     `;
     card.addEventListener('click', () => openModal(n));
@@ -279,13 +283,14 @@ noteTitleInput.addEventListener('keypress', (e) => { if (e.key === 'Enter' && !e
 
 async function createNote() {
   const titulo = noteTitleInput.value.trim();
-  if (!titulo && pendingTasks.length === 0) return;
+  const contenido = noteContentInput.value.trim() || null;
+  if (!titulo && !contenido && pendingTasks.length === 0) return;
   noteError.textContent = '';
   setLoading(saveNoteBtn, true);
   try {
     const nota = await api('/api/notas', {
       method: 'POST',
-      body: JSON.stringify({ titulo: titulo || null, color: selectedColor || null })
+      body: JSON.stringify({ titulo: titulo || null, contenido, color: selectedColor || null })
     });
     for (const t of pendingTasks) {
       await api(`/api/notas/${nota.id}/tareas`, {
@@ -293,6 +298,7 @@ async function createNote() {
       });
     }
     noteTitleInput.value = '';
+    noteContentInput.value = '';
     taskInput.value = '';
     pendingTasks = [];
     selectedColor = '';
@@ -315,6 +321,7 @@ async function createNote() {
 function openModal(nota) {
   currentNota = nota;
   modalTitle.value = nota.titulo || '';
+  modalContentInput.value = nota.contenido || '';
   modal.classList.remove('hidden');
   renderModalTasks();
   updateModalPin();
@@ -331,22 +338,26 @@ modalClose.addEventListener('click', closeModal);
 document.querySelector('.modal-backdrop')?.addEventListener('click', closeModal);
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
 
-// Modal title edit
-let titleTimeout;
-modalTitle.addEventListener('input', () => {
-  clearTimeout(titleTimeout);
-  titleTimeout = setTimeout(saveModalTitle, 500);
-});
+// Modal title + content edit
+let modalSaveTimeout;
+modalTitle.addEventListener('input', scheduleModalSave);
+modalContentInput.addEventListener('input', scheduleModalSave);
 
-async function saveModalTitle() {
+function scheduleModalSave() {
+  clearTimeout(modalSaveTimeout);
+  modalSaveTimeout = setTimeout(saveModalContent, 500);
+}
+
+async function saveModalContent() {
   if (!currentNota) return;
   try {
     currentNota.titulo = modalTitle.value.trim() || null;
+    currentNota.contenido = modalContentInput.value.trim() || null;
     await api(`/api/notas/${currentNota.id}`, {
       method: 'PUT', body: JSON.stringify(currentNota)
     });
     loadNotas();
-  } catch (err) { showToast('Error al guardar título', 'error'); }
+  } catch (err) { showToast('Error al guardar', 'error'); }
 }
 
 // Modal color
