@@ -59,6 +59,17 @@ const labelsBar = $('labels-bar');
 const labelsScroll = $('labels-scroll');
 const filterBar = $('filter-bar');
 const filterLabels = $('filter-labels');
+const menuBtn = $('menu-btn');
+const menuClose = $('menu-close');
+const mobileMenu = $('mobile-menu');
+const menuUserName = $('menu-user-name');
+const menuNotesBtn = $('menu-notes-btn');
+const menuArchivedBtn = $('menu-archived-btn');
+const menuViewToggle = $('menu-view-toggle');
+const menuViewText = $('menu-view-text');
+const menuDarkToggle = $('menu-dark-toggle');
+const menuDarkText = $('menu-dark-text');
+const menuLogout = $('menu-logout');
 
 if (darkMode) document.documentElement.setAttribute('data-theme', 'dark');
 updateDarkIcon();
@@ -158,10 +169,6 @@ darkToggle.addEventListener('click', () => {
   updateDarkIcon();
 });
 
-function updateDarkIcon() {
-  darkToggle.innerHTML = darkMode ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
-}
-
 // View toggle
 viewToggle.addEventListener('click', () => {
   listView = !listView;
@@ -173,6 +180,70 @@ viewToggle.addEventListener('click', () => {
 function updateViewIcon() {
   viewToggle.innerHTML = listView ? '<i class="fas fa-th-large"></i>' : '<i class="fas fa-list"></i>';
   viewToggle.title = listView ? 'Vista cuadrícula' : 'Vista lista';
+  if (menuViewText) menuViewText.textContent = listView ? 'Vista cuadrícula' : 'Vista lista';
+}
+
+// Mobile menu
+function openMenu() {
+  if (!mobileMenu || !token) return;
+  if (menuUserName) menuUserName.textContent = userDisplay.textContent;
+  syncMenuTabs();
+  mobileMenu.classList.remove('hidden');
+}
+function closeMenu() {
+  if (mobileMenu) mobileMenu.classList.add('hidden');
+}
+function syncMenuTabs() {
+  if (menuNotesBtn) menuNotesBtn.classList.toggle('active', !showArchived);
+  if (menuArchivedBtn) menuArchivedBtn.classList.toggle('active', showArchived);
+}
+
+if (menuBtn) menuBtn.addEventListener('click', openMenu);
+if (menuClose) menuClose.addEventListener('click', closeMenu);
+document.querySelector('.mobile-menu-backdrop')?.addEventListener('click', closeMenu);
+
+if (menuNotesBtn) menuNotesBtn.addEventListener('click', () => {
+  showArchived = false;
+  syncMenuTabs();
+  if (viewNotesBtn) { viewNotesBtn.classList.add('active'); viewArchivedBtn?.classList.remove('active'); }
+  if (addNoteCard) addNoteCard.classList.remove('hidden');
+  if (labelsBar) labelsBar.classList.remove('hidden');
+  closeMenu();
+  loadNotas();
+});
+if (menuArchivedBtn) menuArchivedBtn.addEventListener('click', () => {
+  showArchived = true;
+  syncMenuTabs();
+  if (viewArchivedBtn) { viewArchivedBtn.classList.add('active'); viewNotesBtn?.classList.remove('active'); }
+  if (addNoteCard) addNoteCard.classList.add('hidden');
+  if (labelsBar) labelsBar.classList.add('hidden');
+  closeMenu();
+  loadNotas();
+});
+if (menuViewToggle) menuViewToggle.addEventListener('click', () => {
+  listView = !listView;
+  localStorage.setItem('listView', listView);
+  updateViewIcon();
+  render();
+  closeMenu();
+});
+if (menuDarkToggle) menuDarkToggle.addEventListener('click', () => {
+  darkMode = !darkMode;
+  localStorage.setItem('darkMode', darkMode);
+  document.documentElement.setAttribute('data-theme', darkMode ? 'dark' : '');
+  updateDarkIcon();
+  if (menuDarkText) menuDarkText.textContent = darkMode ? 'Modo claro' : 'Modo oscuro';
+  closeMenu();
+});
+if (menuLogout) menuLogout.addEventListener('click', () => {
+  closeMenu();
+  logoutBtn?.click();
+});
+
+function updateDarkIcon() {
+  darkToggle.innerHTML = darkMode ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+  darkToggle.title = darkMode ? 'Modo claro' : 'Modo oscuro';
+  if (menuDarkText) menuDarkText.textContent = darkMode ? 'Modo claro' : 'Modo oscuro';
 }
 
 // Notes / Archived tabs

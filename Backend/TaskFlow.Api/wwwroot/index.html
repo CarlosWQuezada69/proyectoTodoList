@@ -62,12 +62,44 @@
           <input type="text" id="search-input" placeholder="Buscar notas...">
         </div>
         <div class="header-right">
-          <button id="view-toggle" class="icon-btn" title="Vista lista"><i class="fas fa-list"></i></button>
-          <button id="dark-toggle" class="icon-btn" title="Modo oscuro"><i class="fas fa-moon"></i></button>
-          <span id="user-display" class="user-name"></span>
-          <button id="logout-btn" class="icon-btn" title="Cerrar sesión"><i class="fas fa-sign-out-alt"></i></button>
+          <button id="view-toggle" class="icon-btn hide-mobile" title="Vista lista"><i class="fas fa-list"></i></button>
+          <button id="dark-toggle" class="icon-btn hide-mobile" title="Modo oscuro"><i class="fas fa-moon"></i></button>
+          <span id="user-display" class="user-name hide-mobile"></span>
+          <button id="logout-btn" class="icon-btn hide-mobile" title="Cerrar sesión"><i class="fas fa-sign-out-alt"></i></button>
+          <button id="menu-btn" class="icon-btn show-mobile" title="Menú"><i class="fas fa-bars"></i></button>
         </div>
       </header>
+
+      <!-- Mobile menu overlay -->
+      <div id="mobile-menu" class="mobile-menu hidden">
+        <div class="mobile-menu-backdrop"></div>
+        <div class="mobile-menu-panel">
+          <div class="mobile-menu-header">
+            <span class="logo">📝</span>
+            <span class="user-name" id="menu-user-name"></span>
+            <button id="menu-close" class="icon-btn"><i class="fas fa-times"></i></button>
+          </div>
+          <div class="mobile-menu-body">
+            <button id="menu-notes-btn" class="menu-item active" data-view="notes">
+              <i class="fas fa-sticky-note"></i> Notas
+            </button>
+            <button id="menu-archived-btn" class="menu-item" data-view="archived">
+              <i class="fas fa-archive"></i> Archivadas
+            </button>
+            <hr class="menu-divider">
+            <button id="menu-view-toggle" class="menu-item">
+              <i class="fas fa-list"></i> <span id="menu-view-text">Vista lista</span>
+            </button>
+            <button id="menu-dark-toggle" class="menu-item">
+              <i class="fas fa-moon"></i> <span id="menu-dark-text">Modo oscuro</span>
+            </button>
+            <hr class="menu-divider">
+            <button id="menu-logout" class="menu-item menu-danger">
+              <i class="fas fa-sign-out-alt"></i> Cerrar sesión
+            </button>
+          </div>
+        </div>
+      </div>
 
       <!-- Labels bar -->
       <div id="labels-bar" class="labels-bar hidden">
