@@ -21,9 +21,15 @@ public class NotasController : ControllerBase
     private int UserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<Nota>>> GetAll([FromQuery] bool archivadas = false)
+    public async Task<ActionResult<PagedResponse<Nota>>> GetAll(
+        [FromQuery] bool archivadas = false,
+        [FromQuery] bool eliminadas = false,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50)
     {
-        return Ok(await _notaRepo.GetAllByUserAsync(UserId, archivadas));
+        if (eliminadas)
+            return Ok(await _notaRepo.GetDeletedByUserAsync(UserId, page, pageSize));
+        return Ok(await _notaRepo.GetAllByUserAsync(UserId, archivadas, page, pageSize));
     }
 
     [HttpGet("{id}")]
@@ -56,9 +62,16 @@ public class NotasController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(int id)
     {
-        var nota = await _notaRepo.GetByIdAsync(id);
-        if (nota == null || nota.UsuarioId != UserId) return NotFound();
-        await _notaRepo.DeleteAsync(nota);
+        if (!await UserOwnsNota(id)) return NotFound();
+        await _notaRepo.DeleteAsync(id);
+        return NoContent();
+    }
+
+    [HttpPut("{id}/restore-deleted")]
+    public async Task<IActionResult> RestoreDeleted(int id)
+    {
+        if (!await UserOwnsNota(id)) return NotFound();
+        await _notaRepo.RestoreDeletedAsync(id);
         return NoContent();
     }
 

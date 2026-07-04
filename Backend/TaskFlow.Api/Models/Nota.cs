@@ -22,6 +22,8 @@ public class Nota
 
     public bool Archivada { get; set; }
 
+    public bool IsDeleted { get; set; }
+
     public DateTime? FechaArchivado { get; set; }
 
     public DateTime? Recordatorio { get; set; }

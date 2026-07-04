@@ -4,7 +4,8 @@ namespace TaskFlow.Api.Repositories;
 
 public interface INotaRepository
 {
-    Task<IEnumerable<Nota>> GetAllByUserAsync(int usuarioId, bool archivadas = false);
+    Task<PagedResponse<Nota>> GetAllByUserAsync(int usuarioId, bool archivadas = false, int page = 1, int pageSize = 50);
+    Task<PagedResponse<Nota>> GetDeletedByUserAsync(int usuarioId, int page = 1, int pageSize = 50);
     Task<Nota?> GetByIdAsync(int id);
     Task<Nota> CreateAsync(Nota nota);
     Task UpdateAsync(Nota nota);
@@ -13,5 +14,6 @@ public interface INotaRepository
     Task ArchiveAsync(int id);
     Task RestoreAsync(int id);
     Task UpdateOrderAsync(int id, int orden);
-    Task DeleteAsync(Nota nota);
+    Task DeleteAsync(int id);
+    Task RestoreDeletedAsync(int id);
 }

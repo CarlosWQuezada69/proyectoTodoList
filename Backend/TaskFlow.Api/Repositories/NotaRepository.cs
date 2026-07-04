@@ -7,23 +7,68 @@ namespace TaskFlow.Api.Repositories;
 public class NotaRepository : INotaRepository
 {
     private readonly ApplicationDbContext _context;
+    private readonly ILogger<NotaRepository> _logger;
 
-    public NotaRepository(ApplicationDbContext context)
+    public NotaRepository(ApplicationDbContext context, ILogger<NotaRepository> logger)
     {
         _context = context;
+        _logger = logger;
     }
 
-    public async Task<IEnumerable<Nota>> GetAllByUserAsync(int usuarioId, bool archivadas = false)
+    public async Task<PagedResponse<Nota>> GetAllByUserAsync(int usuarioId, bool archivadas = false, int page = 1, int pageSize = 50)
     {
-        return await _context.Notas
-            .Where(n => n.UsuarioId == usuarioId && n.Archivada == archivadas)
+        pageSize = Math.Min(pageSize, 100);
+
+        var query = _context.Notas
+            .Where(n => n.UsuarioId == usuarioId && !n.IsDeleted && n.Archivada == archivadas);
+
+        var total = await query.CountAsync();
+
+        var items = await query
             .Include(n => n.Tareas.OrderBy(t => t.Id))
             .Include(n => n.NotaEtiquetas).ThenInclude(ne => ne.Etiqueta)
             .OrderByDescending(n => n.IsPinned)
             .ThenBy(n => n.Orden)
             .ThenByDescending(n => n.FechaCreacion)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .AsNoTracking()
             .ToListAsync();
+
+        return new PagedResponse<Nota>
+        {
+            Items = items,
+            Total = total,
+            Page = page,
+            PageSize = pageSize
+        };
+    }
+
+    public async Task<PagedResponse<Nota>> GetDeletedByUserAsync(int usuarioId, int page = 1, int pageSize = 50)
+    {
+        pageSize = Math.Min(pageSize, 100);
+
+        var query = _context.Notas
+            .Where(n => n.UsuarioId == usuarioId && n.IsDeleted);
+
+        var total = await query.CountAsync();
+
+        var items = await query
+            .Include(n => n.Tareas.OrderBy(t => t.Id))
+            .Include(n => n.NotaEtiquetas).ThenInclude(ne => ne.Etiqueta)
+            .OrderByDescending(n => n.FechaModificacion)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .AsNoTracking()
+            .ToListAsync();
+
+        return new PagedResponse<Nota>
+        {
+            Items = items,
+            Total = total,
+            Page = page,
+            PageSize = pageSize
+        };
     }
 
     public async Task<Nota?> GetByIdAsync(int id)
@@ -42,6 +87,7 @@ public class NotaRepository : INotaRepository
         nota.Orden = maxOrden + 1;
         _context.Notas.Add(nota);
         await _context.SaveChangesAsync();
+        _logger.LogInformation("Created note {NotaId} for user {UsuarioId}", nota.Id, nota.UsuarioId);
         return nota;
     }
 
@@ -86,6 +132,7 @@ public class NotaRepository : INotaRepository
                 .SetProperty(n => n.Archivada, true)
                 .SetProperty(n => n.FechaArchivado, DateTime.UtcNow)
                 .SetProperty(n => n.FechaModificacion, DateTime.UtcNow));
+        _logger.LogInformation("Archived note {NotaId}", id);
     }
 
     public async Task RestoreAsync(int id)
@@ -107,10 +154,22 @@ public class NotaRepository : INotaRepository
                 .SetProperty(n => n.FechaModificacion, DateTime.UtcNow));
     }
 
-    public async Task DeleteAsync(Nota nota)
+    public async Task RestoreDeletedAsync(int id)
     {
-        var tracked = await _context.Notas.FindAsync(nota.Id);
-        if (tracked != null) _context.Notas.Remove(tracked);
-        await _context.SaveChangesAsync();
+        await _context.Notas
+            .Where(n => n.Id == id)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(n => n.IsDeleted, false)
+                .SetProperty(n => n.FechaModificacion, DateTime.UtcNow));
+    }
+
+    public async Task DeleteAsync(int id)
+    {
+        await _context.Notas
+            .Where(n => n.Id == id)
+            .ExecuteUpdateAsync(setters => setters
+                .SetProperty(n => n.IsDeleted, true)
+                .SetProperty(n => n.FechaModificacion, DateTime.UtcNow));
+        _logger.LogInformation("Soft-deleted note {NotaId}", id);
     }
 }
