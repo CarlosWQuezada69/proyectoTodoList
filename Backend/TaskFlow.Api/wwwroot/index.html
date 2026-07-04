@@ -125,47 +125,17 @@
       </div>
 
       <main>
-        <!-- Add note -->
-        <div class="add-note-card" id="add-note-card">
-          <input type="text" id="note-title-input" placeholder="Título..." maxlength="200">
-          <textarea id="note-content-input" class="note-content-input" placeholder="Escribe tu nota aquí..." maxlength="5000" rows="3"></textarea>
-          <div class="add-task-row">
-            <input type="text" id="task-input" placeholder="Nueva tarea..." maxlength="500">
-            <button id="add-task-btn" class="btn-icon"><i class="fas fa-plus"></i></button>
-          </div>
-          <div id="task-preview" class="task-preview"></div>
-          <div class="note-actions">
-            <div class="color-picker">
-              <button class="color-btn active" data-color=""></button>
-              <button class="color-btn" data-color="#f28b82"></button>
-              <button class="color-btn" data-color="#fbbc04"></button>
-              <button class="color-btn" data-color="#fff475"></button>
-              <button class="color-btn" data-color="#ccff90"></button>
-              <button class="color-btn" data-color="#a7ffeb"></button>
-              <button class="color-btn" data-color="#cbf0f8"></button>
-              <button class="color-btn" data-color="#aecbfa"></button>
-              <button class="color-btn" data-color="#d7aefb"></button>
-              <button class="color-btn" data-color="#fdcfe8"></button>
-              <button class="color-btn" data-color="#e8eaed"></button>
-            </div>
-            <button id="save-note-btn" class="btn-primary btn-sm">Añadir nota</button>
-          </div>
-          <p id="note-error" class="error-msg" style="margin-top:8px"></p>
-        </div>
-
-        <!-- Filter labels -->
-        <div id="filter-bar" class="filter-bar hidden">
-          <div class="filter-labels" id="filter-labels"></div>
-        </div>
-
         <!-- Notes grid/list -->
         <div id="notes-container"></div>
         <div id="empty-msg" class="empty-state">
           <div class="empty-icon" id="empty-icon">📝</div>
           <p id="empty-text">No hay notas</p>
-          <p id="empty-sub" class="empty-sub">Crea tu primera nota</p>
+          <p id="empty-sub" class="empty-sub">Presiona + para crear tu primera nota</p>
         </div>
       </main>
+
+      <!-- FAB -->
+      <button id="fab-btn" class="fab" title="Nueva nota"><i class="fas fa-plus"></i></button>
     </div>
   </div>
 
@@ -214,7 +184,10 @@
       <div class="modal-add-task">
         <input type="text" id="modal-task-input" placeholder="+ Añadir tarea" maxlength="500">
       </div>
-      <div class="modal-footer">
+      <div id="modal-create-actions" class="hidden">
+        <button id="modal-create-btn" class="mbtn" style="width:100%">Crear nota</button>
+      </div>
+      <div id="modal-edit-actions" class="modal-footer">
         <button id="modal-check-all" class="btn-outline btn-sm">✓ Marcar todas</button>
         <button id="modal-restore-note" class="btn-outline btn-sm hidden">Restaurar</button>
         <button id="modal-delete-note" class="btn-outline btn-sm danger">🗑 Eliminar</button>

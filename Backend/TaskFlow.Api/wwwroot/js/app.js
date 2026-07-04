@@ -3,12 +3,11 @@ let token = localStorage.getItem('token');
 let notas = [];
 let etiquetas = [];
 let currentNota = null;
-let selectedColor = '';
-let pendingTasks = [];
 let darkMode = localStorage.getItem('darkMode') === 'true';
 let listView = localStorage.getItem('listView') === 'true';
 let showArchived = false;
 let filterLabelId = null;
+let isCreateMode = false;
 
 const $ = id => document.getElementById(id);
 const authSection = $('auth-section');
@@ -26,13 +25,6 @@ const emptyMsg = $('empty-msg');
 const emptyIcon = $('empty-icon');
 const emptyText = $('empty-text');
 const emptySub = $('empty-sub');
-const noteTitleInput = $('note-title-input');
-const noteContentInput = $('note-content-input');
-const taskInput = $('task-input');
-const addTaskBtn = $('add-task-btn');
-const taskPreview = $('task-preview');
-const saveNoteBtn = $('save-note-btn');
-const noteError = $('note-error');
 const searchInput = $('search-input');
 const modal = $('note-modal');
 const modalContent = modal?.querySelector('.modal-content');
@@ -51,7 +43,10 @@ const modalReminderClear = $('modal-reminder-clear');
 const modalEtiquetas = $('modal-etiquetas');
 const modalEtiquetaSelect = $('modal-etiqueta-select');
 const modalEtiquetaAdd = $('modal-etiqueta-add');
-const addNoteCard = $('add-note-card');
+const modalCreateBtn = $('modal-create-btn');
+const modalCreateActions = $('modal-create-actions');
+const modalEditActions = $('modal-edit-actions');
+const fabBtn = $('fab-btn');
 const toast = $('toast');
 const viewNotesBtn = $('view-notes-btn');
 const viewArchivedBtn = $('view-archived-btn');
@@ -213,7 +208,6 @@ if (menuNotesBtn) menuNotesBtn.addEventListener('click', () => {
   showArchived = false;
   syncMenuTabs();
   if (viewNotesBtn) { viewNotesBtn.classList.add('active'); viewArchivedBtn?.classList.remove('active'); }
-  if (addNoteCard) addNoteCard.classList.remove('hidden');
   if (labelsBar) labelsBar.classList.remove('hidden');
   closeMenu();
   loadNotas();
@@ -222,7 +216,6 @@ if (menuArchivedBtn) menuArchivedBtn.addEventListener('click', () => {
   showArchived = true;
   syncMenuTabs();
   if (viewArchivedBtn) { viewArchivedBtn.classList.add('active'); viewNotesBtn?.classList.remove('active'); }
-  if (addNoteCard) addNoteCard.classList.add('hidden');
   if (labelsBar) labelsBar.classList.add('hidden');
   closeMenu();
   loadNotas();
@@ -258,7 +251,7 @@ viewNotesBtn.addEventListener('click', () => {
   showArchived = false;
   viewNotesBtn.classList.add('active');
   viewArchivedBtn.classList.remove('active');
-  addNoteCard.classList.remove('hidden');
+  if (fabBtn) fabBtn.classList.remove('hidden');
   labelsBar.classList.remove('hidden');
   loadNotas();
 });
@@ -266,7 +259,7 @@ viewArchivedBtn.addEventListener('click', () => {
   showArchived = true;
   viewArchivedBtn.classList.add('active');
   viewNotesBtn.classList.remove('active');
-  addNoteCard.classList.add('hidden');
+  if (fabBtn) fabBtn.classList.add('hidden');
   labelsBar.classList.add('hidden');
   loadNotas();
 });
@@ -420,6 +413,7 @@ function renderNotas(filtered) {
     if (isGridView) {
       card.innerHTML = `
         ${n.isPinned ? '<span class="pin-icon"><i class="fas fa-star"></i></span>' : ''}
+        ${!showArchived ? `<button class="card-del" data-id="${n.id}" title="Eliminar"><i class="fas fa-trash-alt"></i></button>` : ''}
         ${n.titulo ? `<div class="card-title">${escHtml(n.titulo)}</div>` : ''}
         ${content ? `<div class="card-content">${content}</div>` : ''}
         ${hasReminder ? `<div class="card-reminder"><i class="fas fa-bell"></i> ${formatDate(n.recordatorio)}</div>` : ''}
@@ -441,6 +435,7 @@ function renderNotas(filtered) {
       ).join('');
       card.innerHTML = `
         ${n.isPinned ? '<span class="pin-icon"><i class="fas fa-star"></i></span>' : ''}
+        ${!showArchived ? `<button class="card-del" data-id="${n.id}" title="Eliminar"><i class="fas fa-trash-alt"></i></button>` : ''}
         <div class="card-title">${n.titulo ? escHtml(n.titulo) : '<span style="color:var(--text-secondary)">Sin título</span>'}</div>
         ${content ? `<div class="card-content">${content}</div>` : ''}
         ${n.tareas && n.tareas.length > 0 ? `<div class="card-tasks">${tasksPreview}</div>` : ''}
@@ -451,6 +446,17 @@ function renderNotas(filtered) {
         </div>
       `;
     }
+
+    // Delete from card
+    card.querySelector('.card-del')?.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      if (!confirm('¿Eliminar esta nota?')) return;
+      try {
+        await api(`/api/notas/${n.id}`, { method: 'DELETE' });
+        loadNotas();
+        showToast('Nota eliminada', 'success');
+      } catch (err) { showToast('Error al eliminar', 'error'); }
+    });
 
     // Drag & drop
     card.addEventListener('dragstart', (e) => {
@@ -534,85 +540,40 @@ function escHtml(s) {
   return d.innerHTML;
 }
 
-// Pending tasks
-addTaskBtn.addEventListener('click', addPendingTask);
-taskInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') addPendingTask(); });
-
-function addPendingTask() {
-  const text = taskInput.value.trim();
-  if (!text) return;
-  pendingTasks.push({ texto: text, completada: false });
-  taskInput.value = '';
-  renderPendingTasks();
-}
-
-function renderPendingTasks() {
-  taskPreview.innerHTML = pendingTasks.map((t, i) => `
-    <div class="preview-item">
-      <span class="p-check"></span>
-      <span>${escHtml(t.texto)}</span>
-      <button class="p-del" data-i="${i}"><i class="fas fa-times"></i></button>
-    </div>
-  `).join('');
-  taskPreview.querySelectorAll('.p-del').forEach(btn => {
-    btn.addEventListener('click', () => {
-      pendingTasks.splice(parseInt(btn.dataset.i), 1);
-      renderPendingTasks();
-    });
-  });
-}
-
-// Color picker (add note)
-addNoteCard.querySelectorAll('.color-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    addNoteCard.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    selectedColor = btn.dataset.color;
-  });
-});
-
-// Save note
-saveNoteBtn.addEventListener('click', createNote);
-noteTitleInput.addEventListener('keypress', (e) => { if (e.key === 'Enter' && !e.shiftKey) createNote(); });
-
-async function createNote() {
-  const titulo = noteTitleInput.value.trim();
-  const contenido = noteContentInput.value.trim() || null;
-  if (!titulo && !contenido && pendingTasks.length === 0) return;
-  noteError.textContent = '';
-  setLoading(saveNoteBtn, true);
-  try {
-    const nota = await api('/api/notas', {
-      method: 'POST',
-      body: JSON.stringify({ titulo: titulo || null, contenido, color: selectedColor || null })
-    });
-    for (const t of pendingTasks) {
-      await api(`/api/notas/${nota.id}/tareas`, {
-        method: 'POST', body: JSON.stringify({ texto: t.texto })
-      });
-    }
-    noteTitleInput.value = '';
-    noteContentInput.value = '';
-    taskInput.value = '';
-    pendingTasks = [];
-    selectedColor = '';
-    renderPendingTasks();
-    addNoteCard.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
-    addNoteCard.querySelector('.color-btn[data-color=""]').classList.add('active');
-    noteError.textContent = '✓ Nota creada';
-    noteError.style.color = '#34a853';
-    setTimeout(() => { noteError.textContent = ''; noteError.style.color = ''; }, 2000);
-    showToast('Nota creada', 'success');
-    loadNotas();
-  } catch (err) {
-    noteError.textContent = '✗ ' + err.message;
-    noteError.style.color = '#d93025';
-    showToast(err.message, 'error');
-  } finally { setLoading(saveNoteBtn, false); }
-}
-
 // Modal
+function openCreateModal() {
+  isCreateMode = true;
+  currentNota = null;
+  modalTitle.value = '';
+  modalContentInput.value = '';
+  modalTasks.innerHTML = '<div style="color:var(--text-secondary);font-size:13px;padding:12px;text-align:center">Sin tareas. Escribe una abajo.</div>';
+  modalTaskInput.value = '';
+  modalReminder.value = '';
+  modalReminderClear.classList.add('hidden');
+
+  const datesDiv = $('modal-dates');
+  datesDiv.innerHTML = '';
+
+  modalCreateActions.classList.remove('hidden');
+  modalEditActions.classList.add('hidden');
+  modalPin.classList.add('hidden');
+  modalArchive.classList.add('hidden');
+
+  modal.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+  modal.querySelector('.color-btn[data-color=""]')?.classList.add('active');
+  if (modalContent) modalContent.style.background = 'var(--surface)';
+
+  modalEtiquetas.innerHTML = '<div style="font-size:12px;color:var(--text-secondary);padding:4px 0">Sin etiquetas</div>';
+  updateModalEtiquetaSelect();
+
+  modal.classList.remove('hidden');
+  setTimeout(() => modalTitle.focus(), 300);
+
+  if (fabBtn) fabBtn.classList.add('open');
+}
+
 async function openModal(nota) {
+  isCreateMode = false;
   currentNota = nota;
   modalTitle.value = nota.titulo || '';
   modalContentInput.value = nota.contenido || '';
@@ -625,6 +586,11 @@ async function openModal(nota) {
     ? `<span><i class="far fa-calendar-alt"></i> ${created}</span><span><i class="far fa-edit"></i> ${modified}</span>`
     : '';
 
+  modalCreateActions.classList.add('hidden');
+  modalEditActions.classList.remove('hidden');
+  modalPin.classList.remove('hidden');
+  modalArchive.classList.remove('hidden');
+
   renderModalTasks();
   updateModalPin();
   updateModalColor();
@@ -635,22 +601,61 @@ async function openModal(nota) {
   modalRestoreNote.classList.toggle('hidden', !nota.archivada);
   modalDeleteNote.classList.toggle('hidden', nota.archivada);
   modalArchive.classList.toggle('hidden', nota.archivada);
+  if (fabBtn) fabBtn.classList.remove('open');
 }
 
 function closeModal() {
   modal.classList.add('hidden');
   currentNota = null;
+  isCreateMode = false;
   modalTaskInput.value = '';
+  if (fabBtn) fabBtn.classList.remove('open');
 }
 
 modalClose.addEventListener('click', closeModal);
 document.querySelector('.modal-backdrop')?.addEventListener('click', closeModal);
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
 
-// Modal title + content edit
+// FAB
+fabBtn?.addEventListener('click', openCreateModal);
+
+// Create note from modal
+modalCreateBtn?.addEventListener('click', createNoteFromModal);
+modalTaskInput.addEventListener('keypress', (e) => {
+  if (e.key !== 'Enter') return;
+  const texto = modalTaskInput.value.trim();
+  if (!texto) return;
+
+  if (isCreateMode) {
+    modalTaskInput.value = '';
+    const emptyMsg = modalTasks.querySelector('div[style]');
+    if (emptyMsg) modalTasks.innerHTML = '';
+    const div = document.createElement('div');
+    div.className = 'm-task';
+    div.innerHTML = `<span class="m-check"></span><span class="m-text">${escHtml(texto)}</span>`;
+    modalTasks.appendChild(div);
+    return;
+  }
+
+  if (!currentNota) return;
+  modalTaskInput.value = '';
+  (async () => {
+    try {
+      const tarea = await api(`/api/notas/${currentNota.id}/tareas`, {
+        method: 'POST', body: JSON.stringify({ texto })
+      });
+      currentNota.tareas.push(tarea);
+      renderModalTasks();
+      loadNotas();
+      showToast('Tarea añadida', 'success');
+    } catch (err) { showToast('Error al añadir tarea', 'error'); }
+  })();
+});
+
+// Modal title + content edit (only in edit mode)
 let modalSaveTimeout;
-modalTitle.addEventListener('input', scheduleModalSave);
-modalContentInput.addEventListener('input', scheduleModalSave);
+modalTitle.addEventListener('input', () => { if (!isCreateMode) scheduleModalSave(); });
+modalContentInput.addEventListener('input', () => { if (!isCreateMode) scheduleModalSave(); });
 
 function scheduleModalSave() {
   clearTimeout(modalSaveTimeout);
@@ -658,7 +663,7 @@ function scheduleModalSave() {
 }
 
 async function saveModalContent() {
-  if (!currentNota) return;
+  if (!currentNota || isCreateMode) return;
   try {
     currentNota.titulo = modalTitle.value.trim() || null;
     currentNota.contenido = modalContentInput.value.trim() || null;
@@ -667,6 +672,38 @@ async function saveModalContent() {
     });
     loadNotas();
   } catch (err) { showToast('Error al guardar', 'error'); }
+}
+
+async function createNoteFromModal() {
+  const titulo = modalTitle.value.trim();
+  const contenido = modalContentInput.value.trim() || null;
+  if (!titulo && !contenido) { showToast('Escribe un título o contenido', 'error'); return; }
+
+  setLoading(modalCreateBtn, true);
+  try {
+    const colorBtn = modal.querySelector('.color-btn.active');
+    const color = colorBtn?.dataset.color || null;
+    const nota = await api('/api/notas', {
+      method: 'POST',
+      body: JSON.stringify({ titulo: titulo || null, contenido, color })
+    });
+
+    const tasks = modalTasks.querySelectorAll('.m-task');
+    for (const el of tasks) {
+      const textEl = el.querySelector('.m-text');
+      if (textEl) {
+        await api(`/api/notas/${nota.id}/tareas`, {
+          method: 'POST', body: JSON.stringify({ texto: textEl.textContent.trim() })
+        });
+      }
+    }
+
+    closeModal();
+    showToast('Nota creada', 'success');
+    loadNotas();
+  } catch (err) {
+    showToast(err.message || 'Error al crear nota', 'error');
+  } finally { setLoading(modalCreateBtn, false); }
 }
 
 // Modal color
