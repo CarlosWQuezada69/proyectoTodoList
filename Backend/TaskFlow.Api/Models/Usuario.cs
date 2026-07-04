@@ -15,6 +15,9 @@ public class Usuario
     [Required]
     public string PasswordHash { get; set; } = null!;
 
+    public string? RefreshToken { get; set; }
+    public DateTime? RefreshTokenExpires { get; set; }
+
     [JsonIgnore, ValidateNever]
     public ICollection<Nota> Notas { get; set; } = new List<Nota>();
 }

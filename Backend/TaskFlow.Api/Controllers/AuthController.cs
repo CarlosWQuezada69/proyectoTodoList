@@ -54,9 +54,41 @@ public class AuthController : ControllerBase
         if (usuario == null || !VerifyPassword(request.Password, usuario.PasswordHash))
             return Unauthorized(new { message = "Credenciales inválidas" });
 
+        var refreshToken = _jwtService.GenerateRefreshToken();
+        usuario.RefreshToken = refreshToken;
+        usuario.RefreshTokenExpires = DateTime.UtcNow.AddDays(7);
+        await _context.SaveChangesAsync();
+
         return Ok(new AuthResponse
         {
             Token = _jwtService.GenerateToken(usuario),
+            RefreshToken = refreshToken,
+            Username = usuario.Username
+        });
+    }
+
+    [HttpPost("refresh")]
+    public async Task<ActionResult<AuthResponse>> Refresh(RefreshRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.RefreshToken))
+            return BadRequest(new { message = "Refresh token requerido" });
+
+        var usuario = await _context.Usuarios.FirstOrDefaultAsync(u =>
+            u.RefreshToken == request.RefreshToken &&
+            u.RefreshTokenExpires > DateTime.UtcNow);
+
+        if (usuario == null)
+            return Unauthorized(new { message = "Sesión expirada" });
+
+        var newRefresh = _jwtService.GenerateRefreshToken();
+        usuario.RefreshToken = newRefresh;
+        usuario.RefreshTokenExpires = DateTime.UtcNow.AddDays(7);
+        await _context.SaveChangesAsync();
+
+        return Ok(new AuthResponse
+        {
+            Token = _jwtService.GenerateToken(usuario),
+            RefreshToken = newRefresh,
             Username = usuario.Username
         });
     }

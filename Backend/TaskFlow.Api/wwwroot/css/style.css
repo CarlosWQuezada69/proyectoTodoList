@@ -143,7 +143,7 @@ body {
 .mfield-input:focus { border-color: #667eea; background: var(--surface); }
 .mfield-input:focus + .mfield-label,
 .mfield-input:not(:placeholder-shown) + .mfield-label {
-  transform: translateY(-32px) translateX(-26px) scale(0.82);
+  transform: translateY(-36px) scale(0.82);
   color: #667eea; font-weight: 600;
 }
 .mfield-label {

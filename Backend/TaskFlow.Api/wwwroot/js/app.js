@@ -1,5 +1,6 @@
 const API = 'http://localhost:5000';
 let token = localStorage.getItem('token');
+let refreshToken = localStorage.getItem('refreshToken');
 let notas = [];
 let currentNota = null;
 let darkMode = localStorage.getItem('darkMode') === 'true';
@@ -139,7 +140,9 @@ loginForm.addEventListener('submit', async (e) => {
     if (!res.ok) { const err = await res.json(); throw new Error(err.message || 'Error'); }
     const data = await res.json();
     token = data.token;
+    refreshToken = data.refreshToken;
     localStorage.setItem('token', token);
+    localStorage.setItem('refreshToken', refreshToken);
     userDisplay.textContent = data.username;
     showMain();
     loadNotas();
@@ -175,8 +178,9 @@ registerForm.addEventListener('submit', async (e) => {
 });
 
 logoutBtn.addEventListener('click', () => {
-  token = null; localStorage.removeItem('token'); showAuth();
-  closeModal();
+  token = null; refreshToken = null;
+  localStorage.removeItem('token'); localStorage.removeItem('refreshToken');
+  showAuth(); closeModal();
   showToast('Sesión cerrada');
 });
 
@@ -308,13 +312,41 @@ function showUndoToast(msg, actionLabel, onUndo) {
 async function api(path, options = {}) {
   const headers = { 'Content-Type': 'application/json' };
   if (token) headers['Authorization'] = `Bearer ${token}`;
-  const res = await fetch(`${API}${path}`, { ...options, headers });
+  let res = await fetch(`${API}${path}`, { ...options, headers });
+
   if (res.status === 429) throw new Error('Demasiadas solicitudes. Espera un momento.');
-  if (res.status === 401) {
-    token = null; localStorage.removeItem('token');
+
+  if (res.status === 401 && refreshToken) {
+    try {
+      const refreshRes = await fetch(`${API}/api/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken })
+      });
+      if (refreshRes.ok) {
+        const data = await refreshRes.json();
+        token = data.token;
+        refreshToken = data.refreshToken;
+        localStorage.setItem('token', token);
+        localStorage.setItem('refreshToken', refreshToken);
+        headers['Authorization'] = `Bearer ${token}`;
+        res = await fetch(`${API}${path}`, { ...options, headers });
+      } else {
+        throw new Error('Refresh failed');
+      }
+    } catch {
+      token = null; refreshToken = null;
+      localStorage.removeItem('token'); localStorage.removeItem('refreshToken');
+      showAuth(); closeModal();
+      throw new Error('Sesión expirada');
+    }
+  } else if (res.status === 401) {
+    token = null;
+    localStorage.removeItem('token');
     showAuth(); closeModal();
     throw new Error('Sesión expirada');
   }
+
   const text = await res.text();
   if (!res.ok) {
     let msg = 'Error';
@@ -324,18 +356,63 @@ async function api(path, options = {}) {
   return text ? JSON.parse(text) : null;
 }
 
+let page = 1;
+let hasMore = true;
+let isLoadingMore = false;
+const PAGE_SIZE = 30;
+
 async function loadNotas() {
+  page = 1;
+  hasMore = true;
   showSkeleton();
   try {
+    let url;
     if (currentView === 'trash') {
-      notas = await api('/api/notas?eliminadas=true');
+      url = `/api/notas?eliminadas=true&page=${page}&pageSize=${PAGE_SIZE}`;
     } else {
-      notas = await api(`/api/notas?archivadas=${currentView === 'archived'}`);
+      url = `/api/notas?archivadas=${currentView === 'archived'}&page=${page}&pageSize=${PAGE_SIZE}`;
     }
+    const resp = await api(url);
+    notas = resp.items || [];
+    hasMore = page < resp.totalPages;
     render();
+    observeSentinel();
   } catch (err) {
     if (err.message !== 'Sesión expirada') showToast('Error al cargar notas', 'error');
   }
+}
+
+async function loadMore() {
+  if (isLoadingMore || !hasMore) return;
+  isLoadingMore = true;
+  page++;
+  try {
+    let url;
+    if (currentView === 'trash') {
+      url = `/api/notas?eliminadas=true&page=${page}&pageSize=${PAGE_SIZE}`;
+    } else {
+      url = `/api/notas?archivadas=${currentView === 'archived'}&page=${page}&pageSize=${PAGE_SIZE}`;
+    }
+    const resp = await api(url);
+    notas = notas.concat(resp.items || []);
+    hasMore = page < resp.totalPages;
+    render();
+    observeSentinel();
+  } catch { page--; }
+  finally { isLoadingMore = false; }
+}
+
+let sentinelObserver = null;
+function observeSentinel() {
+  const sentinel = document.getElementById('scroll-sentinel');
+  if (!sentinel) return;
+  if (sentinelObserver) sentinelObserver.disconnect();
+  if (!hasMore) { sentinel.style.display = 'none'; return; }
+  sentinel.style.display = '';
+  sentinelObserver = new IntersectionObserver((entries) => {
+    if (entries[0].isIntersecting) loadMore();
+  }, { rootMargin: '200px' });
+  sentinelObserver.observe(sentinel);
 }
 
 function getFiltered() {
