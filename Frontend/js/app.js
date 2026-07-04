@@ -147,6 +147,7 @@ loginForm.addEventListener('submit', async (e) => {
     showMain();
     loadNotas();
     showToast('Sesión iniciada', 'success');
+    showOnboarding();
   } catch (err) { loginError.textContent = err.message; }
   finally { setLoading(loginForm.querySelector('button[type="submit"]'), false); }
 });
@@ -685,7 +686,19 @@ dotsDelete?.addEventListener('click', async () => {
 });
 dotsArchive?.addEventListener('click', async () => {
   if (!currentNota) return;
-  try { await api(`/api/notas/${currentNota.id}/archive`, { method: 'PUT' }); closeModal(); loadNotas(); showToast('Nota archivada', 'success'); }
+  const notaId = currentNota.id;
+  closeModal();
+  try {
+    await api(`/api/notas/${notaId}/archive`, { method: 'PUT' });
+    loadNotas();
+    showUndoToast('Nota archivada', 'Deshacer', async () => {
+      try {
+        await api(`/api/notas/${notaId}/restore`, { method: 'PUT' });
+        loadNotas();
+        showToast('Nota restaurada', 'success');
+      } catch { showToast('Error al restaurar', 'error'); }
+    });
+  }
   catch (err) { showToast('Error al archivar', 'error'); }
 });
 dotsRestore?.addEventListener('click', async () => {
@@ -915,6 +928,154 @@ async function createNoteFromModal() {
   } finally { setLoading(modalCreateBtn, false); }
 }
 
+// ── Export ───────────────────────────────────────────────────────────────
+
+const exportBtn = $('export-btn');
+exportBtn?.addEventListener('click', () => showExportMenu());
+
+function showExportMenu() {
+  const existing = document.querySelector('.export-menu');
+  if (existing) existing.remove();
+  const menu = document.createElement('div');
+  menu.className = 'export-menu';
+  menu.innerHTML = `
+    <button class="export-option" data-format="json"><i class="fas fa-file-code"></i> Exportar como JSON</button>
+    <button class="export-option" data-format="markdown"><i class="fas fa-file-alt"></i> Exportar como Markdown</button>
+  `;
+  exportBtn.parentElement.appendChild(menu);
+  menu.querySelectorAll('.export-option').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      menu.remove();
+      const format = btn.dataset.format;
+      await exportNotas(format);
+    });
+  });
+  const closeMenu = (e) => { if (!menu.contains(e.target) && e.target !== exportBtn) menu.remove(); document.removeEventListener('click', closeMenu); };
+  setTimeout(() => document.addEventListener('click', closeMenu), 0);
+}
+
+async function exportNotas(format) {
+  try {
+    const res = await api('/api/notas?todas=true');
+    const data = await res.json();
+    const items = data.items || data;
+    let content, filename, mime;
+    if (format === 'json') {
+      content = JSON.stringify(items, null, 2);
+      filename = `notas-${new Date().toISOString().slice(0,10)}.json`;
+      mime = 'application/json';
+    } else {
+      content = items.map(n => {
+        let md = `# ${n.titulo || 'Sin título'}\n\n`;
+        md += `${n.contenido || ''}\n\n`;
+        if (n.tareas && n.tareas.length) {
+          md += `## Checklist\n`;
+          n.tareas.forEach(t => md += `- [${t.completada ? 'x' : ' '}] ${t.descripcion}\n`);
+          md += '\n';
+        }
+        if (n.recordatorio) md += `> Recordatorio: ${new Date(n.recordatorio).toLocaleString()}\n\n`;
+        md += `---\n*Creado: ${new Date(n.fechaCreacion).toLocaleString()} | Modificado: ${new Date(n.fechaModificacion).toLocaleString()}*\n\n`;
+        return md;
+      }).join('\n');
+      filename = `notas-${new Date().toISOString().slice(0,10)}.md`;
+      mime = 'text/markdown';
+    }
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast(`Notas exportadas como ${format.toUpperCase()}`, 'success');
+  } catch (err) {
+    showToast('Error al exportar notas', 'error');
+  }
+}
+
+// ── Onboarding ───────────────────────────────────────────────────────────
+
+function showOnboarding() {
+  if (localStorage.getItem('onboardingDone')) return;
+  const overlay = document.createElement('div');
+  overlay.className = 'onboarding-overlay';
+  overlay.innerHTML = `
+    <div class="onboarding-card" role="dialog" aria-label="Tutorial">
+      <button class="onboarding-close" aria-label="Cerrar tutorial">&times;</button>
+      <div class="onboarding-steps">
+        <div class="onboarding-step active">
+          <div class="onboarding-icon">📝</div>
+          <h2>Bienvenido a TaskFlow</h2>
+          <p>Toma notas rápidas con checklist y recordatorios. Todo sincronizado en la nube.</p>
+        </div>
+        <div class="onboarding-step">
+          <div class="onboarding-icon">📋</div>
+          <h2>Checklist inteligente</h2>
+          <p>Añade tareas a tus notas, márcalas como completadas y edítalas con doble clic.</p>
+        </div>
+        <div class="onboarding-step">
+          <div class="onboarding-icon">🔔</div>
+          <h2>Recordatorios</h2>
+          <p>Establece recordatorios en cualquier nota para no olvidar lo importante.</p>
+        </div>
+        <div class="onboarding-step">
+          <div class="onboarding-icon">🗑️</div>
+          <h2>Papelera y archivado</h2>
+          <p>Archiva notas para organizarte. Las notas eliminadas van a la papelera por si necesitas recuperarlas.</p>
+        </div>
+      </div>
+      <div class="onboarding-dots"></div>
+      <div class="onboarding-nav">
+        <button class="onboarding-prev hidden" aria-label="Anterior">Anterior</button>
+        <button class="onboarding-next" aria-label="Siguiente">Siguiente</button>
+        <button class="onboarding-finish hidden" aria-label="Comenzar">¡Comenzar!</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(overlay);
+
+  const steps = overlay.querySelectorAll('.onboarding-step');
+  const dots = overlay.querySelector('.onboarding-dots');
+  const prevBtn = overlay.querySelector('.onboarding-prev');
+  const nextBtn = overlay.querySelector('.onboarding-next');
+  const finishBtn = overlay.querySelector('.onboarding-finish');
+  const closeBtn = overlay.querySelector('.onboarding-close');
+  let currentStep = 0;
+
+  steps.forEach((_, i) => {
+    const dot = document.createElement('span');
+    dot.className = 'onboarding-dot' + (i === 0 ? ' active' : '');
+    dots.appendChild(dot);
+  });
+
+  function updateStep() {
+    steps.forEach((s, i) => s.classList.toggle('active', i === currentStep));
+    dots.querySelectorAll('.onboarding-dot').forEach((d, i) => d.classList.toggle('active', i === currentStep));
+    prevBtn.classList.toggle('hidden', currentStep === 0);
+    nextBtn.classList.toggle('hidden', currentStep === steps.length - 1);
+    finishBtn.classList.toggle('hidden', currentStep !== steps.length - 1);
+  }
+
+  nextBtn.addEventListener('click', () => { if (currentStep < steps.length - 1) { currentStep++; updateStep(); } });
+  prevBtn.addEventListener('click', () => { if (currentStep > 0) { currentStep--; updateStep(); } });
+  function dismiss() { overlay.remove(); localStorage.setItem('onboardingDone', 'true'); }
+  finishBtn.addEventListener('click', dismiss);
+  closeBtn.addEventListener('click', dismiss);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) dismiss(); });
+}
+
+// ── Service Worker (PWA) ────────────────────────────────────────────────
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').then(reg => {
+      console.log('SW registered:', reg.scope);
+    }).catch(err => {
+      console.warn('SW registration failed:', err);
+    });
+  });
+}
+
 // ── Search ──────────────────────────────────────────────────────────────
 
 let searchTimeout;
@@ -925,5 +1086,5 @@ searchInput.addEventListener('input', () => {
 
 // ── Init ────────────────────────────────────────────────────────────────
 
-if (token) { showMain(); loadNotas(); }
+if (token) { showMain(); loadNotas(); showOnboarding(); }
 else { showAuth(); }

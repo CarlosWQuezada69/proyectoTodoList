@@ -878,6 +878,116 @@ textarea:focus { border-color: var(--primary); }
   .modal-content { padding: 0 8px 8px; }
 }
 
+/* ── Export Menu ────────────────────────────────────────────────────────── */
+
+.export-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 100;
+  min-width: 220px;
+  overflow: hidden;
+}
+.export-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 12px 16px;
+  border: none;
+  background: none;
+  color: var(--text);
+  font-size: 14px;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--transition);
+}
+.export-option:hover { background: var(--hover); }
+.export-option i { width: 18px; color: var(--primary); }
+.navbar-right { position: relative; }
+
+/* ── Onboarding ────────────────────────────────────────────────────────── */
+
+.onboarding-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.3s ease;
+}
+.onboarding-card {
+  background: var(--surface);
+  border-radius: 20px;
+  padding: 40px 32px 24px;
+  max-width: 420px;
+  width: 90%;
+  text-align: center;
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+  animation: slideUp 0.35s ease;
+}
+.onboarding-close {
+  position: absolute;
+  top: 8px;
+  right: 12px;
+  background: none;
+  border: none;
+  font-size: 28px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  line-height: 1;
+}
+.onboarding-steps { min-height: 220px; position: relative; }
+.onboarding-step {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+.onboarding-step.active { display: flex; }
+.onboarding-icon { font-size: 48px; margin-bottom: 8px; }
+.onboarding-step h2 { margin: 0; font-size: 20px; color: var(--text); }
+.onboarding-step p { margin: 0; font-size: 14px; color: var(--text-secondary); line-height: 1.6; }
+.onboarding-dots {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin: 20px 0 16px;
+}
+.onboarding-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--border);
+  transition: background var(--transition);
+}
+.onboarding-dot.active { background: var(--primary); width: 24px; border-radius: 4px; }
+.onboarding-nav { display: flex; justify-content: space-between; gap: 12px; }
+.onboarding-nav button {
+  padding: 10px 24px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+.onboarding-prev { background: transparent; color: var(--text-secondary); }
+.onboarding-prev:hover { background: var(--hover); }
+.onboarding-next, .onboarding-finish { background: var(--primary); color: #fff; }
+.onboarding-next:hover, .onboarding-finish:hover { background: var(--primary-hover); }
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+
 /* Touch-friendly: larger hit targets on mobile */
 @media (hover: none) and (pointer: coarse) {
   .icon-btn { width: 44px; height: 44px; }
