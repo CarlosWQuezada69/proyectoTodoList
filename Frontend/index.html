@@ -20,6 +20,9 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="TaskFlow">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -36,63 +39,8 @@
 </head>
 <body>
   <div id="app">
-    <!-- Auth -->
-    <div id="auth-section">
-      <div class="auth-bg"></div>
-      <div class="auth-container">
-        <div class="auth-card">
-          <div class="auth-card-inner">
-            <header class="auth-header">
-              <div class="auth-avatar" aria-hidden="true">📝</div>
-              <h1>TaskFlow</h1>
-              <p class="auth-subtitle">Tus notas con checklist</p>
-            </header>
-            <div class="auth-tabs">
-              <button class="auth-tab active" data-tab="login">Entrar</button>
-              <button class="auth-tab" data-tab="register">Crear cuenta</button>
-              <div class="auth-tab-indicator"></div>
-            </div>
-            <div class="auth-forms">
-              <form id="login-form" class="auth-form">
-                <div class="mfield">
-                  <input type="text" id="login-username" required autocomplete="username" class="mfield-input" placeholder=" ">
-                  <label for="login-username" class="mfield-label">Usuario</label>
-                  <span class="mfield-bar"></span>
-                  <i class="fas fa-user mfield-icon"></i>
-                </div>
-                <div class="mfield">
-                  <input type="password" id="login-password" required autocomplete="current-password" class="mfield-input" placeholder=" ">
-                  <label for="login-password" class="mfield-label">Contraseña</label>
-                  <span class="mfield-bar"></span>
-                  <i class="fas fa-lock mfield-icon"></i>
-                </div>
-                <button type="submit" class="mbtn">Entrar</button>
-                <p id="login-error" class="auth-error"></p>
-              </form>
-              <form id="register-form" class="auth-form hidden">
-                <div class="mfield">
-                  <input type="text" id="reg-username" required class="mfield-input" placeholder=" ">
-                  <label for="reg-username" class="mfield-label">Usuario</label>
-                  <span class="mfield-bar"></span>
-                  <i class="fas fa-user-plus mfield-icon"></i>
-                </div>
-                <div class="mfield">
-                  <input type="password" id="reg-password" required class="mfield-input" placeholder=" ">
-                  <label for="reg-password" class="mfield-label">Contraseña</label>
-                  <span class="mfield-bar"></span>
-                  <i class="fas fa-lock mfield-icon"></i>
-                </div>
-                <button type="submit" class="mbtn">Crear cuenta</button>
-                <p id="register-error" class="auth-error"></p>
-              </form>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- Main App -->
-    <section id="main-section" class="hidden">
+    <section id="main-section">
       <!-- Navbar -->
       <header class="navbar" role="banner">
         <div class="navbar-left">
@@ -108,8 +56,6 @@
           <button id="export-btn" class="icon-btn hide-mobile" title="Exportar notas" aria-label="Exportar notas"><i class="fas fa-download" aria-hidden="true"></i></button>
           <button id="view-toggle" class="icon-btn hide-mobile" title="Cambiar vista" aria-label="Cambiar vista"><i class="fas fa-list" aria-hidden="true"></i></button>
           <button id="dark-toggle" class="icon-btn hide-mobile" title="Modo oscuro" aria-label="Modo oscuro"><i class="fas fa-moon" aria-hidden="true"></i></button>
-          <span id="user-display" class="user-name hide-mobile" aria-live="polite"></span>
-          <button id="logout-btn" class="icon-btn hide-mobile" title="Cerrar sesión" aria-label="Cerrar sesión"><i class="fas fa-sign-out-alt" aria-hidden="true"></i></button>
           <button id="menu-btn" class="icon-btn show-mobile" title="Menú" aria-label="Abrir menú"><i class="fas fa-bars" aria-hidden="true"></i></button>
         </div>
       </header>
@@ -160,7 +106,6 @@
         <div class="mobile-menu-panel">
           <div class="mobile-menu-header">
           <span class="navbar-logo">📝</span>
-            <span class="user-name" id="menu-user-name"></span>
             <button id="menu-close" class="icon-btn"><i class="fas fa-times"></i></button>
           </div>
           <div class="mobile-menu-body">
@@ -176,10 +121,6 @@
             </button>
             <button id="menu-dark-toggle" class="menu-item">
               <i class="fas fa-moon"></i> <span id="menu-dark-text">Modo oscuro</span>
-            </button>
-            <hr class="menu-divider">
-            <button id="menu-logout" class="menu-item menu-danger">
-              <i class="fas fa-sign-out-alt"></i> Cerrar sesión
             </button>
           </div>
         </div>

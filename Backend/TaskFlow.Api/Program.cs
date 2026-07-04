@@ -1,15 +1,12 @@
 using System.Reflection;
-using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.RateLimiting;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
 using Serilog;
 using TaskFlow.Api.Data;
+using TaskFlow.Api.Models;
 using TaskFlow.Api.Repositories;
-using TaskFlow.Api.Services;
 
 Log.Logger = new LoggerConfiguration()
     .WriteTo.Console()
@@ -46,7 +43,6 @@ try
     builder.Services.AddScoped<INotaRepository, NotaRepository>();
     builder.Services.AddScoped<ITareaRepository, TareaRepository>();
     builder.Services.AddScoped<IEtiquetaRepository, EtiquetaRepository>();
-    builder.Services.AddSingleton<IJwtService, JwtService>();
 
     // CORS -----------------------------------------------------------------------
     builder.Services.AddCors(options =>
@@ -85,33 +81,6 @@ try
     // Static files ----------------------------------------------------------------
     builder.Services.AddDirectoryBrowser();
 
-    // JWT Authentication ---------------------------------------------------------
-    var jwtSettings = builder.Configuration.GetSection("Jwt");
-    var secretKey = jwtSettings.GetValue<string>("SecretKey")
-        ?? throw new InvalidOperationException("JWT SecretKey is not configured");
-    var issuer   = jwtSettings.GetValue<string>("Issuer") ?? "TaskFlowApi";
-    var audience = jwtSettings.GetValue<string>("Audience") ?? "TaskFlowClient";
-
-    builder.Services.AddAuthentication(options =>
-    {
-        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-        options.DefaultChallengeScheme   = JwtBearerDefaults.AuthenticationScheme;
-    })
-    .AddJwtBearer(options =>
-    {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer           = true,
-            ValidateAudience         = true,
-            ValidateLifetime         = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer              = issuer,
-            ValidAudience            = audience,
-            IssuerSigningKey         = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
-            ClockSkew                = TimeSpan.FromMinutes(1)
-        };
-    });
-
     var app = builder.Build();
 
     // Security headers -----------------------------------------------------------
@@ -130,6 +99,17 @@ try
     {
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         db.Database.EnsureCreated();
+
+        // Ensure default user exists
+        if (!db.Usuarios.Any())
+        {
+            db.Usuarios.Add(new Usuario
+            {
+                Username = "admin",
+                PasswordHash = "default"
+            });
+            db.SaveChanges();
+        }
     }
 
     if (app.Environment.IsDevelopment())
@@ -143,8 +123,6 @@ try
     app.UseHttpsRedirection();
     app.UseCors();
     app.UseRateLimiter();
-    app.UseAuthentication();
-    app.UseAuthorization();
     app.MapControllers().RequireRateLimiting("Api");
     app.MapFallbackToFile("index.html");
 

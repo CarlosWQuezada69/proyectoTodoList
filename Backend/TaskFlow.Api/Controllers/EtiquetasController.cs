@@ -1,5 +1,3 @@
-using System.Security.Claims;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TaskFlow.Api.Models;
 using TaskFlow.Api.Repositories;
@@ -8,7 +6,6 @@ namespace TaskFlow.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
 public class EtiquetasController : ControllerBase
 {
     private readonly IEtiquetaRepository _repo;
@@ -20,18 +17,18 @@ public class EtiquetasController : ControllerBase
         _notaRepo = notaRepo;
     }
 
-    private int UserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    private const int DefaultUserId = 1;
 
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Etiqueta>>> GetAll()
     {
-        return Ok(await _repo.GetAllByUserAsync(UserId));
+        return Ok(await _repo.GetAllByUserAsync(DefaultUserId));
     }
 
     [HttpPost]
     public async Task<ActionResult<Etiqueta>> Create([FromBody] Etiqueta etiqueta)
     {
-        etiqueta.UsuarioId = UserId;
+        etiqueta.UsuarioId = DefaultUserId;
         var created = await _repo.CreateAsync(etiqueta);
         return CreatedAtAction(nameof(GetAll), null, created);
     }
@@ -62,6 +59,6 @@ public class EtiquetasController : ControllerBase
     private async Task<bool> UserOwnsNota(int notaId)
     {
         var nota = await _notaRepo.GetByIdAsync(notaId);
-        return nota != null && nota.UsuarioId == UserId;
+        return nota != null && nota.UsuarioId == DefaultUserId;
     }
 }

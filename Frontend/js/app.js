@@ -1,6 +1,4 @@
 const API = 'http://localhost:5000';
-let token = localStorage.getItem('token');
-let refreshToken = localStorage.getItem('refreshToken');
 let notas = [];
 let currentNota = null;
 let darkMode = localStorage.getItem('darkMode') === 'true';
@@ -9,14 +7,7 @@ let currentView = 'notes';
 let modalMode = ''; // 'viewing' | 'editing' | 'creating'
 
 const $ = id => document.getElementById(id);
-const authSection = $('auth-section');
 const mainSection = $('main-section');
-const loginForm = $('login-form');
-const registerForm = $('register-form');
-const loginError = $('login-error');
-const registerError = $('register-error');
-const userDisplay = $('user-display');
-const logoutBtn = $('logout-btn');
 const darkToggle = $('dark-toggle');
 const viewToggle = $('view-toggle');
 const notesContainer = $('notes-container');
@@ -52,30 +43,28 @@ const viewArchivedBtn = $('view-archived-btn');
 const menuBtn = $('menu-btn');
 const menuClose = $('menu-close');
 const mobileMenu = $('mobile-menu');
-const menuUserName = $('menu-user-name');
 const menuNotesBtn = $('menu-notes-btn');
 const menuArchivedBtn = $('menu-archived-btn');
 const menuViewToggle = $('menu-view-toggle');
 const menuViewText = $('menu-view-text');
 const menuDarkToggle = $('menu-dark-toggle');
 const menuDarkText = $('menu-dark-text');
-const menuLogout = $('menu-logout');
 const refreshBtn = $('refresh-btn');
 
 if (darkMode) document.documentElement.setAttribute('data-theme', 'dark');
 updateDarkIcon();
 updateViewIcon();
 
+loadNotas();
+
 
 // Toast
 let toastTimer;
 const confirmDialog = document.getElementById('confirmDeleteModal');
 
-function showConfirmModal(username) {
+function showConfirmModal() {
   const msg = document.getElementById('confirm-msg');
-  msg.textContent = username
-    ? `¿Eliminar esta nota, ${username}?`
-    : '¿Eliminar esta nota?';
+  msg.textContent = '¿Eliminar esta nota?';
   return new Promise((resolve) => {
     confirmDialog.showModal();
     confirmDialog.addEventListener('close', () => {
@@ -103,87 +92,6 @@ function setLoading(btn, loading) {
     btn.classList.remove('btn-loading');
   }
 }
-
-// Auth
-function showAuth() { authSection.classList.remove('hidden'); mainSection.classList.add('hidden'); }
-function showMain() { authSection.classList.add('hidden'); mainSection.classList.remove('hidden'); }
-
-document.querySelectorAll('.auth-tab').forEach(tab => {
-  tab.addEventListener('click', () => {
-    document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
-    tab.classList.add('active');
-    const tabsEl = tab.closest('.auth-tabs');
-    if (tabsEl) tabsEl.dataset.active = tab.dataset.tab;
-    const isLogin = tab.dataset.tab === 'login';
-    const lf = $('login-form'), rf = $('register-form');
-    lf.classList.toggle('hidden', !isLogin);
-    rf.classList.toggle('hidden', isLogin);
-    if (isLogin) { lf.classList.add('auth-form-enter'); setTimeout(() => lf.classList.remove('auth-form-enter'), 350); }
-    else { rf.classList.add('auth-form-enter'); setTimeout(() => rf.classList.remove('auth-form-enter'), 350); }
-    loginError.textContent = ''; registerError.textContent = '';
-  });
-});
-
-loginForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const username = $('login-username').value.trim();
-  const password = $('login-password').value;
-  loginError.textContent = '';
-  if (!username || !password) { loginError.textContent = 'Completa todos los campos'; return; }
-  if (password.length < 4) { loginError.textContent = 'Contraseña demasiado corta'; return; }
-  setLoading(loginForm.querySelector('button[type="submit"]'), true);
-  try {
-    const res = await fetch(`${API}/api/auth/login`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
-    });
-    if (!res.ok) { const err = await res.json(); throw new Error(err.message || 'Error'); }
-    const data = await res.json();
-    token = data.token;
-    refreshToken = data.refreshToken;
-    localStorage.setItem('token', token);
-    localStorage.setItem('refreshToken', refreshToken);
-    userDisplay.textContent = data.username;
-    showMain();
-    loadNotas();
-    showToast('Sesión iniciada', 'success');
-    showOnboarding();
-  } catch (err) { loginError.textContent = err.message; }
-  finally { setLoading(loginForm.querySelector('button[type="submit"]'), false); }
-});
-
-registerForm.addEventListener('submit', async (e) => {
-  e.preventDefault();
-  const username = $('reg-username').value.trim();
-  const password = $('reg-password').value;
-  registerError.textContent = '';
-  if (!username || !password) { registerError.textContent = 'Completa todos los campos'; return; }
-  if (username.length < 3) { registerError.textContent = 'El usuario debe tener al menos 3 caracteres'; return; }
-  if (password.length < 6) { registerError.textContent = 'La contraseña debe tener al menos 6 caracteres'; return; }
-  if (!/[A-Z]/.test(password)) { registerError.textContent = 'La contraseña debe contener una mayúscula'; return; }
-  if (!/[0-9]/.test(password)) { registerError.textContent = 'La contraseña debe contener un número'; return; }
-  setLoading(registerForm.querySelector('button[type="submit"]'), true);
-  try {
-    const res = await fetch(`${API}/api/auth/register`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username, password })
-    });
-    if (!res.ok) { const err = await res.json(); throw new Error(err.message || 'Error'); }
-    document.querySelector('[data-tab="login"]').click();
-    $('login-username').value = username;
-    loginError.textContent = 'Cuenta creada. Inicia sesión.';
-    loginError.style.color = '#34a853';
-    showToast('Cuenta creada', 'success');
-  } catch (err) { registerError.textContent = err.message; }
-  finally { setLoading(registerForm.querySelector('button[type="submit"]'), false); }
-});
-
-logoutBtn.addEventListener('click', () => {
-  token = null; refreshToken = null;
-  localStorage.removeItem('token'); localStorage.removeItem('refreshToken');
-  showAuth(); closeModal();
-  showToast('Sesión cerrada');
-});
 
 darkToggle.addEventListener('click', toggleDark);
 function toggleDark() {
@@ -213,8 +121,7 @@ function updateViewIcon() {
 
 // Mobile menu
 function openMenu() {
-  if (!mobileMenu || !token) return;
-  if (menuUserName) menuUserName.textContent = userDisplay.textContent;
+  if (!mobileMenu) return;
   menuNotesBtn?.classList.toggle('active', currentView === 'notes');
   menuArchivedBtn?.classList.toggle('active', currentView === 'archived');
   mobileMenu.classList.remove('hidden');
@@ -228,7 +135,6 @@ menuNotesBtn?.addEventListener('click', () => switchView('notes'));
 menuArchivedBtn?.addEventListener('click', () => switchView('archived'));
 menuViewToggle?.addEventListener('click', () => { toggleView(); closeMenu(); });
 menuDarkToggle?.addEventListener('click', () => { toggleDark(); closeMenu(); });
-menuLogout?.addEventListener('click', () => { closeMenu(); logoutBtn?.click(); });
 
 // Sidebar delegation
 document.querySelector('.sidebar-nav')?.addEventListener('click', (e) => {
@@ -312,41 +218,9 @@ function showUndoToast(msg, actionLabel, onUndo) {
 // API
 async function api(path, options = {}) {
   const headers = { 'Content-Type': 'application/json' };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
   let res = await fetch(`${API}${path}`, { ...options, headers });
 
   if (res.status === 429) throw new Error('Demasiadas solicitudes. Espera un momento.');
-
-  if (res.status === 401 && refreshToken) {
-    try {
-      const refreshRes = await fetch(`${API}/api/auth/refresh`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken })
-      });
-      if (refreshRes.ok) {
-        const data = await refreshRes.json();
-        token = data.token;
-        refreshToken = data.refreshToken;
-        localStorage.setItem('token', token);
-        localStorage.setItem('refreshToken', refreshToken);
-        headers['Authorization'] = `Bearer ${token}`;
-        res = await fetch(`${API}${path}`, { ...options, headers });
-      } else {
-        throw new Error('Refresh failed');
-      }
-    } catch {
-      token = null; refreshToken = null;
-      localStorage.removeItem('token'); localStorage.removeItem('refreshToken');
-      showAuth(); closeModal();
-      throw new Error('Sesión expirada');
-    }
-  } else if (res.status === 401) {
-    token = null;
-    localStorage.removeItem('token');
-    showAuth(); closeModal();
-    throw new Error('Sesión expirada');
-  }
 
   const text = await res.text();
   if (!res.ok) {
@@ -494,7 +368,7 @@ function renderNotas(filtered) {
 
     card.querySelector('.card-del')?.addEventListener('click', async (e) => {
       e.stopPropagation();
-      if (!await showConfirmModal(userDisplay.textContent)) return;
+      if (!await showConfirmModal()) return;
       const notaId = n.id;
       const notaTitulo = n.titulo;
       card.style.opacity = '0.3';
@@ -668,7 +542,7 @@ document.addEventListener('click', () => modalDotsMenu?.classList.add('hidden'),
 
 dotsEdit?.addEventListener('click', openEditModal);
 dotsDelete?.addEventListener('click', async () => {
-  if (!currentNota || !await showConfirmModal(userDisplay.textContent)) return;
+  if (!currentNota || !await showConfirmModal()) return;
   const notaId = currentNota.id;
   closeModal();
   try {
@@ -1067,6 +941,9 @@ function showOnboarding() {
 // ── Service Worker (PWA) ────────────────────────────────────────────────
 
 if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(registrations => {
+    registrations.forEach(reg => reg.unregister());
+  });
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').then(reg => {
       console.log('SW registered:', reg.scope);
@@ -1085,6 +962,4 @@ searchInput.addEventListener('input', () => {
 });
 
 // ── Init ────────────────────────────────────────────────────────────────
-
-if (token) { showMain(); loadNotas(); showOnboarding(); }
-else { showAuth(); }
+// loaded at top of script

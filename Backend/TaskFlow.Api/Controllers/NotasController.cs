@@ -1,5 +1,3 @@
-using System.Security.Claims;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TaskFlow.Api.Models;
 using TaskFlow.Api.Repositories;
@@ -8,7 +6,6 @@ namespace TaskFlow.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize]
 public class NotasController : ControllerBase
 {
     private readonly INotaRepository _notaRepo;
@@ -18,7 +15,7 @@ public class NotasController : ControllerBase
         _notaRepo = notaRepo;
     }
 
-    private int UserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    private const int DefaultUserId = 1;
 
     [HttpGet]
     public async Task<ActionResult<PagedResponse<Nota>>> GetAll(
@@ -28,22 +25,22 @@ public class NotasController : ControllerBase
         [FromQuery] int pageSize = 50)
     {
         if (eliminadas)
-            return Ok(await _notaRepo.GetDeletedByUserAsync(UserId, page, pageSize));
-        return Ok(await _notaRepo.GetAllByUserAsync(UserId, archivadas, page, pageSize));
+            return Ok(await _notaRepo.GetDeletedByUserAsync(DefaultUserId, page, pageSize));
+        return Ok(await _notaRepo.GetAllByUserAsync(DefaultUserId, archivadas, page, pageSize));
     }
 
     [HttpGet("{id}")]
     public async Task<ActionResult<Nota>> GetById(int id)
     {
         var nota = await _notaRepo.GetByIdAsync(id);
-        if (nota == null || nota.UsuarioId != UserId) return NotFound();
+        if (nota == null || nota.UsuarioId != DefaultUserId) return NotFound();
         return Ok(nota);
     }
 
     [HttpPost]
     public async Task<ActionResult<Nota>> Create([FromBody] Nota nota)
     {
-        nota.UsuarioId = UserId;
+        nota.UsuarioId = DefaultUserId;
         nota.FechaCreacion = DateTime.UtcNow;
         var created = await _notaRepo.CreateAsync(nota);
         return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
@@ -54,7 +51,7 @@ public class NotasController : ControllerBase
     {
         if (id != nota.Id) return BadRequest();
         if (!await UserOwnsNota(id)) return NotFound();
-        nota.UsuarioId = UserId;
+        nota.UsuarioId = DefaultUserId;
         await _notaRepo.UpdateAsync(nota);
         return NoContent();
     }
@@ -118,7 +115,7 @@ public class NotasController : ControllerBase
     private async Task<bool> UserOwnsNota(int notaId)
     {
         var nota = await _notaRepo.GetByIdAsync(notaId);
-        return nota != null && nota.UsuarioId == UserId;
+        return nota != null && nota.UsuarioId == DefaultUserId;
     }
 }
 

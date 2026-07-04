@@ -1,4 +1,4 @@
-const CACHE = 'taskflow-v1';
+const CACHE = 'taskflow-v2';
 const ASSETS = [
   '/',
   '/index.html',

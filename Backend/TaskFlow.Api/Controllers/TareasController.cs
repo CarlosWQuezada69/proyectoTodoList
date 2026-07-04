@@ -1,5 +1,3 @@
-using System.Security.Claims;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TaskFlow.Api.Models;
 using TaskFlow.Api.Repositories;
@@ -8,7 +6,6 @@ namespace TaskFlow.Api.Controllers;
 
 [ApiController]
 [Route("api/notas/{notaId}/tareas")]
-[Authorize]
 public class TareasController : ControllerBase
 {
     private readonly ITareaRepository _tareaRepo;
@@ -20,7 +17,7 @@ public class TareasController : ControllerBase
         _notaRepo = notaRepo;
     }
 
-    private int UserId => int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+    private const int DefaultUserId = 1;
 
     [HttpGet]
     public async Task<ActionResult<IEnumerable<Tarea>>> GetAll(int notaId)
@@ -73,6 +70,6 @@ public class TareasController : ControllerBase
     private async Task<bool> UserOwnsNota(int notaId)
     {
         var nota = await _notaRepo.GetByIdAsync(notaId);
-        return nota != null && nota.UsuarioId == UserId;
+        return nota != null && nota.UsuarioId == DefaultUserId;
     }
 }
