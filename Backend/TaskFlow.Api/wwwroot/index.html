@@ -11,38 +11,56 @@
   <div id="app">
     <!-- Auth -->
     <div id="auth-section">
-      <div class="auth-card">
-        <div class="auth-logo">📝</div>
-        <h1>TaskFlow</h1>
-        <p class="subtitle">Tus notas con checklist</p>
-        <div class="tabs">
-          <button class="tab active" data-tab="login">Entrar</button>
-          <button class="tab" data-tab="register">Crear cuenta</button>
+      <div class="auth-bg"></div>
+      <div class="auth-container">
+        <div class="auth-card">
+          <div class="auth-card-inner">
+            <div class="auth-header">
+              <div class="auth-avatar">📝</div>
+              <h1>TaskFlow</h1>
+              <p class="auth-subtitle">Tus notas con checklist</p>
+            </div>
+            <div class="auth-tabs">
+              <button class="auth-tab active" data-tab="login">Entrar</button>
+              <button class="auth-tab" data-tab="register">Crear cuenta</button>
+              <div class="auth-tab-indicator"></div>
+            </div>
+            <div class="auth-forms">
+              <form id="login-form" class="auth-form">
+                <div class="mfield">
+                  <input type="text" id="login-username" required autocomplete="username" class="mfield-input" placeholder=" ">
+                  <label for="login-username" class="mfield-label">Usuario</label>
+                  <span class="mfield-bar"></span>
+                  <i class="fas fa-user mfield-icon"></i>
+                </div>
+                <div class="mfield">
+                  <input type="password" id="login-password" required autocomplete="current-password" class="mfield-input" placeholder=" ">
+                  <label for="login-password" class="mfield-label">Contraseña</label>
+                  <span class="mfield-bar"></span>
+                  <i class="fas fa-lock mfield-icon"></i>
+                </div>
+                <button type="submit" class="mbtn">Entrar</button>
+                <p id="login-error" class="auth-error"></p>
+              </form>
+              <form id="register-form" class="auth-form hidden">
+                <div class="mfield">
+                  <input type="text" id="reg-username" required class="mfield-input" placeholder=" ">
+                  <label for="reg-username" class="mfield-label">Usuario</label>
+                  <span class="mfield-bar"></span>
+                  <i class="fas fa-user-plus mfield-icon"></i>
+                </div>
+                <div class="mfield">
+                  <input type="password" id="reg-password" required class="mfield-input" placeholder=" ">
+                  <label for="reg-password" class="mfield-label">Contraseña</label>
+                  <span class="mfield-bar"></span>
+                  <i class="fas fa-lock mfield-icon"></i>
+                </div>
+                <button type="submit" class="mbtn">Crear cuenta</button>
+                <p id="register-error" class="auth-error"></p>
+              </form>
+            </div>
+          </div>
         </div>
-        <form id="login-form" class="auth-form">
-          <div class="field">
-            <label for="login-username">Usuario</label>
-            <input type="text" id="login-username" required autocomplete="username">
-          </div>
-          <div class="field">
-            <label for="login-password">Contraseña</label>
-            <input type="password" id="login-password" required autocomplete="current-password">
-          </div>
-          <button type="submit" class="btn-primary">Entrar</button>
-          <p id="login-error" class="error-msg"></p>
-        </form>
-        <form id="register-form" class="auth-form hidden">
-          <div class="field">
-            <label for="reg-username">Usuario</label>
-            <input type="text" id="reg-username" required>
-          </div>
-          <div class="field">
-            <label for="reg-password">Contraseña</label>
-            <input type="password" id="reg-password" required>
-          </div>
-          <button type="submit" class="btn-primary">Crear cuenta</button>
-          <p id="register-error" class="error-msg"></p>
-        </form>
       </div>
     </div>
 

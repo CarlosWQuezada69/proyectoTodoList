@@ -102,12 +102,19 @@ function setLoading(btn, loading) {
 function showAuth() { authSection.classList.remove('hidden'); mainSection.classList.add('hidden'); }
 function showMain() { authSection.classList.add('hidden'); mainSection.classList.remove('hidden'); }
 
-document.querySelectorAll('.tab').forEach(tab => {
+document.querySelectorAll('.auth-tab').forEach(tab => {
   tab.addEventListener('click', () => {
-    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
     tab.classList.add('active');
-    $('login-form').classList.toggle('hidden', tab.dataset.tab !== 'login');
-    $('register-form').classList.toggle('hidden', tab.dataset.tab !== 'register');
+    const tabsEl = tab.closest('.auth-tabs');
+    if (tabsEl) tabsEl.dataset.active = tab.dataset.tab;
+    const isLogin = tab.dataset.tab === 'login';
+    const loginForm = $('login-form');
+    const registerForm = $('register-form');
+    loginForm.classList.toggle('hidden', !isLogin);
+    registerForm.classList.toggle('hidden', isLogin);
+    if (isLogin) { loginForm.classList.add('auth-form-enter'); setTimeout(() => loginForm.classList.remove('auth-form-enter'), 350); }
+    else { registerForm.classList.add('auth-form-enter'); setTimeout(() => registerForm.classList.remove('auth-form-enter'), 350); }
     loginError.textContent = ''; registerError.textContent = '';
   });
 });
